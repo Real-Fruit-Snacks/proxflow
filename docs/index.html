@@ -3,265 +3,355 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>proxflow — Proxmox map and lab builder that works offline</title>
-<meta name="description" content="ProxFlow draws a Proxmox VE cluster as a live map and builds labs on it (an AD domain controller, Windows and Linux servers joined to it, containers, nested ESXi) from the ISOs, boxes and templates already on your storage. One Windows zip, no install, no internet.">
+<title>proxflow — draw the lab, and it gets built on Proxmox</title>
+<meta name="description" content="ProxFlow is a map and lab builder for Proxmox VE. Design a domain controller, Windows and Linux servers, containers and nested ESXi on a canvas, and ProxFlow builds them from the ISOs, boxes and templates already on your storage. One Windows zip, no install, no internet.">
 <link rel="canonical" href="https://real-fruit-snacks.github.io/proxflow/">
-<meta property="og:title" content="proxflow">
-<meta property="og:description" content="Proxmox map and lab builder that works offline">
+<meta property="og:title" content="proxflow — draw the lab, and it gets built">
+<meta property="og:description" content="A map and lab builder for Proxmox VE that works offline. One Windows zip, no install.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://real-fruit-snacks.github.io/proxflow/">
-<meta property="og:image" content="https://real-fruit-snacks.github.io/proxflow/assets/cover-dark.png">
+<meta property="og:image" content="https://real-fruit-snacks.github.io/proxflow/assets/og.png">
 <meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="560">
-<meta property="og:image:alt" content="proxflow's Build canvas after a deploy: a domain controller and three members joined to its domain, each reporting ready">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="An engineering drawing of an AD lab on Proxmox: dc01 with ws01, ws02 and linux01 joined to its domain on vmbr0, stamped As built">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="icon" href="assets/favicon.ico" sizes="32x32">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0C0D10">
-<script>
-  // Theme before first paint: a saved choice wins, otherwise follow the OS.
-  (function () {
-    try {
-      var t = localStorage.getItem('rfs-theme');
-      if (t === 'nightshift' || t === 'dayshift') document.documentElement.setAttribute('data-theme', t);
-    } catch (e) {}
-    document.documentElement.classList.add('js');
-  })();
-</script>
-<link rel="preload" href="assets/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/ibm-plex-mono-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/rfs.css">
-<link rel="stylesheet" href="assets/site.css">
-<link rel="stylesheet" href="assets/proxflow.css">
+<meta name="theme-color" content="#eff5f6">
+<link rel="preload" href="assets/fonts/archivo-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/martian-mono-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<header class="site">
-  <div class="wrap">
-    <a class="brand" href="https://real-fruit-snacks.github.io/" aria-label="RFS home">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Real-Fruit-Snacks/rfs-brand/main/assets/rfs-lockup-dark.svg">
-        <img alt="RFS" src="https://raw.githubusercontent.com/Real-Fruit-Snacks/rfs-brand/main/assets/rfs-lockup-light.svg" data-lockup>
-      </picture>
-      <span class="sep" aria-hidden="true"></span>
-      <span class="name">proxflow</span>
-    </a>
-    <nav>
-      <a href="#install">Download</a>
-      <a href="#how">How it works</a>
-      <a href="#connect">Connecting</a>
-      <a href="#config">Configuration</a>
-      <a class="keep" href="https://github.com/Real-Fruit-Snacks/proxflow">GitHub</a>
-      <button class="toggle" type="button" id="theme" aria-label="Switch between Nightshift and Dayshift"><span class="night">Nightshift</span><span class="day">Dayshift</span></button>
-    </nav>
-  </div>
+<header class="masthead">
+  <a class="wordmark" href="#top" aria-label="proxflow, top of page">proxflow</a>
+  <nav aria-label="Sections">
+    <a href="#install">Download</a>
+    <a href="#how">How it works</a>
+    <a href="#screens">Screens</a>
+    <a href="https://github.com/Real-Fruit-Snacks/proxflow">GitHub</a>
+  </nav>
 </header>
 
-<main>
-<div class="hero">
-  <div class="grid-bg" aria-hidden="true"></div>
-  <div class="grid-warm" aria-hidden="true"></div>
-  <div class="glow" aria-hidden="true"></div>
-  <div class="wrap">
-    <div>
-      <p class="label">Windows · Proxmox VE 8 · offline</p>
-      <h1>proxflow</h1>
-      <p class="lead">Proxmox map and lab builder that works offline</p>
-      <p class="sub">ProxFlow draws your Proxmox cluster as a live map and builds labs on it: a domain controller, Windows and Linux servers joined to its domain, containers, nested ESXi. Every machine comes from ISOs, boxes and templates already on your storage.</p>
+<main id="top">
+
+<!-- ───────────────────────── sheet 1: the drawing ───────────────────────── -->
+<section class="sheet" aria-labelledby="headline">
+  <div class="zones zones-x" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+  <div class="zones zones-y" aria-hidden="true"><span>A</span><span>B</span><span>C</span><span>D</span></div>
+  <div class="crosshair" aria-hidden="true"><i class="ch-x"></i><i class="ch-y"></i></div>
+
+  <div class="sheet-body">
+    <div class="hero-copy">
+      <h1 id="headline"><span class="ln">Draw the lab.</span> <span class="ln">ProxFlow builds it.</span></h1>
+      <p class="standfirst">A map and lab builder for Proxmox VE. Put a domain controller, Windows and Linux servers, containers and nested ESXi on a canvas, and ProxFlow builds each one from the ISOs, boxes and templates already on your storage. It needs no internet.</p>
+      <div class="actions">
+        <a class="button" href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip">Download for Windows</a>
+        <p class="action-meta">v0.1.0 · 35&nbsp;MB zip · Node.js inside, nothing to install</p>
+      </div>
     </div>
 
-    <div class="install side" id="install">
-      <div class="tabs" role="tablist">
-        <button role="tab" aria-selected="true" data-pane="dl">Download</button>
-        <button role="tab" aria-selected="false" data-pane="ps">PowerShell</button>
-      </div>
-      <div class="pane dl" data-active data-id="dl">
-        <a class="btn primary" href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip">Download the Windows zip</a>
-        <span class="meta">v0.1.0 · 35 MB · <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">checksums</a></span>
-      </div>
-      <div class="pane" data-id="ps"><pre><code>irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .</code></pre><button class="copy" data-copy="irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .">Copy</button></div>
-      <div class="foot">Unblock the zip (Properties, Unblock), extract it anywhere and double-click <code>ProxFlow.cmd</code>. Node.js is inside: no installer, no admin rights. Start with <code>ProxFlow-demo.cmd</code> to try it against a simulated Proxmox.</div>
-    </div>
+    <figure class="plot" aria-label="Drawing of an AD lab on Proxmox node pve1">
+      <svg class="plot-wide" viewBox="0 0 600 420" role="img" aria-labelledby="plot-title plot-desc">
+        <title id="plot-title">AD lab, as built</title>
+        <desc id="plot-desc">Proxmox node pve1 hosts four machines on the vmbr0 network: dc01, a domain controller from a Windows Server ISO at 192.168.1.200, and ws01, ws02 and linux01, built from templates and a box, at .201 to .203, all joined to lab.internal and ready.</desc>
 
-    <div class="full tour" id="screens">
-      <div class="tour-tabs" role="tablist" aria-label="Screens">
-        <button role="tab" id="tab-build" aria-selected="true" aria-controls="screen-build">Build</button>
-        <button role="tab" id="tab-map" aria-selected="false" aria-controls="screen-map">Map</button>
-      </div>
-      <figure id="screen-build" role="tabpanel" aria-labelledby="tab-build">
-        <a class="zoom" href="assets/shot-build.webp" aria-label="Open the full-size screenshot"><img class="shot" src="assets/shot-build.webp" width="1800" height="1125" alt="The Build screen after a deploy: dc01 on top with ws01, ws02 and linux01 joined to its domain by dashed lines, and a deployment panel listing all four machines as ready with their IP addresses and login lines"></a>
-        <figcaption>An Active Directory lab after a deploy: the domain controller came from the Windows Server ISO, the members from a template and a box on the share. All four report ready with an address and a login line.</figcaption>
-      </figure>
-      <figure id="screen-map" role="tabpanel" aria-labelledby="tab-map">
-        <a class="zoom" href="assets/shot-map.webp" aria-label="Open the full-size screenshot"><img class="shot" src="assets/shot-map.webp" width="1800" height="1125" loading="lazy" alt="The Map: node pve1 with its guests, bridges and local storage, node pve2 beside it, shared storage below, and dc01 selected with its inspector open"></a>
-        <figcaption>The map of the same cluster. Selecting dc01 traces its network card to vmbr0 and its disk to local-lvm, and opens power actions and snapshots.</figcaption>
-      </figure>
-      <p class="note">Screens from demo mode, which runs against a simulated Proxmox.</p>
-    </div>
+        <!-- host boundary -->
+        <rect class="host" x="16" y="22" width="568" height="376" rx="4"/>
+        <text class="t t-cap" x="32" y="44" style="--t:.35s">PVE1 · PROXMOX VE 8.4</text>
+        <text class="t t-cap" x="568" y="44" text-anchor="end" style="--t:.45s">LAB · lab.internal</text>
+
+        <!-- domain-join arcs: members up to dc01 -->
+        <path class="arc" style="--t:1.35s" d="M236 150 C236 112 100 112 100 150"/>
+        <path class="arc" style="--t:1.45s" d="M372 150 C372 84 100 84 100 150"/>
+        <path class="arc" style="--t:1.55s" d="M508 150 C508 54 100 54 100 150"/>
+        <circle class="node-pt" style="--t:1.7s" cx="100" cy="150" r="3"/>
+        <text class="t t-note" x="304" y="68" text-anchor="middle" style="--t:1.75s">joins lab.internal</text>
+
+        <!-- machines -->
+        <g class="box" style="--d:.55s">
+          <rect x="40" y="150" width="120" height="80" rx="3"/>
+          <text class="t t-name" x="52" y="172">dc01</text>
+          <text class="t t-role" x="52" y="188">domain controller</text>
+          <text class="t t-src" x="52" y="204">Server 2025 ISO</text>
+          <text class="t t-ok" x="52" y="221" style="--t:1.75s">● ready</text>
+        </g>
+        <g class="box" style="--d:.65s">
+          <rect x="176" y="150" width="120" height="80" rx="3"/>
+          <text class="t t-name" x="188" y="172">ws01</text>
+          <text class="t t-role" x="188" y="188">windows server</text>
+          <text class="t t-src" x="188" y="204">template 9001</text>
+          <text class="t t-ok" x="188" y="221" style="--t:1.82s">● ready</text>
+        </g>
+        <g class="box" style="--d:.75s">
+          <rect x="312" y="150" width="120" height="80" rx="3"/>
+          <text class="t t-name" x="324" y="172">ws02</text>
+          <text class="t t-role" x="324" y="188">windows server</text>
+          <text class="t t-src" x="324" y="204">template 9001</text>
+          <text class="t t-ok" x="324" y="221" style="--t:1.89s">● ready</text>
+        </g>
+        <g class="box" style="--d:.85s">
+          <rect x="448" y="150" width="120" height="80" rx="3"/>
+          <text class="t t-name" x="460" y="172">linux01</text>
+          <text class="t t-role" x="460" y="188">linux vm</text>
+          <text class="t t-src" x="460" y="204">box · rocky9</text>
+          <text class="t t-ok" x="460" y="221" style="--t:1.96s">● ready</text>
+        </g>
+
+        <!-- network bus and drops -->
+        <path class="wire bus" pathLength="1" style="--d:1s" d="M40 300 H568"/>
+        <path class="wire" pathLength="1" style="--d:1.15s" d="M100 230 V300"/>
+        <path class="wire" pathLength="1" style="--d:1.2s" d="M236 230 V300"/>
+        <path class="wire" pathLength="1" style="--d:1.25s" d="M372 230 V300"/>
+        <path class="wire" pathLength="1" style="--d:1.3s" d="M508 230 V300"/>
+        <text class="t t-ip" x="106" y="270" style="--t:1.3s">.200</text>
+        <text class="t t-ip" x="242" y="270" style="--t:1.35s">.201</text>
+        <text class="t t-ip" x="378" y="270" style="--t:1.4s">.202</text>
+        <text class="t t-ip" x="514" y="270" style="--t:1.45s">.203</text>
+        <text class="t t-cap" x="40" y="322" style="--t:1.25s">VMBR0 · 192.168.1.0/24</text>
+        <text class="t t-note" x="40" y="376" style="--t:1.6s">from share:iso and share:backup</text>
+
+        <!-- the stamp -->
+        <g class="stamp">
+          <rect x="398" y="318" width="164" height="58" rx="5"/>
+          <rect class="inner" x="403" y="323" width="154" height="48" rx="3"/>
+          <text class="s-big" x="480" y="350" text-anchor="middle">AS BUILT</text>
+          <text class="s-small" x="480" y="364" text-anchor="middle">4/4 MACHINES READY</text>
+        </g>
+      </svg>
+      <svg class="plot-tall" viewBox="0 0 340 490" role="img" aria-labelledby="plot-title plot-desc">
+        <rect class="host" x="6" y="6" width="328" height="478" rx="4"/>
+        <text class="t t-cap" x="20" y="28" style="--t:.35s">PVE1 · PROXMOX VE 8.4</text>
+        <text class="t t-cap" x="320" y="28" text-anchor="end" style="--t:.45s">LAB · lab.internal</text>
+
+        <path class="arc" style="--t:1.35s" d="M64 162 C44 162 44 82 64 82"/>
+        <path class="arc" style="--t:1.45s" d="M64 242 C28 242 28 82 64 82"/>
+        <path class="arc" style="--t:1.55s" d="M64 322 C12 322 12 82 64 82"/>
+        <circle class="node-pt" style="--t:1.7s" cx="64" cy="82" r="3"/>
+        <text class="t t-note" x="17" y="202" text-anchor="middle" transform="rotate(-90 17 202)" style="--t:1.75s">joins lab.internal</text>
+
+        <g class="box" style="--d:.55s">
+          <rect x="64" y="50" width="176" height="64" rx="3"/>
+          <text class="t t-name" x="76" y="72">dc01</text>
+          <text class="t t-ok" x="228" y="72" text-anchor="end" style="--t:1.75s">● ready</text>
+          <text class="t t-role" x="76" y="89">domain controller</text>
+          <text class="t t-src" x="76" y="104">Server 2025 ISO</text>
+        </g>
+        <g class="box" style="--d:.65s">
+          <rect x="64" y="130" width="176" height="64" rx="3"/>
+          <text class="t t-name" x="76" y="152">ws01</text>
+          <text class="t t-ok" x="228" y="152" text-anchor="end" style="--t:1.82s">● ready</text>
+          <text class="t t-role" x="76" y="169">windows server</text>
+          <text class="t t-src" x="76" y="184">template 9001</text>
+        </g>
+        <g class="box" style="--d:.75s">
+          <rect x="64" y="210" width="176" height="64" rx="3"/>
+          <text class="t t-name" x="76" y="232">ws02</text>
+          <text class="t t-ok" x="228" y="232" text-anchor="end" style="--t:1.89s">● ready</text>
+          <text class="t t-role" x="76" y="249">windows server</text>
+          <text class="t t-src" x="76" y="264">template 9001</text>
+        </g>
+        <g class="box" style="--d:.85s">
+          <rect x="64" y="290" width="176" height="64" rx="3"/>
+          <text class="t t-name" x="76" y="312">linux01</text>
+          <text class="t t-ok" x="228" y="312" text-anchor="end" style="--t:1.96s">● ready</text>
+          <text class="t t-role" x="76" y="329">linux vm</text>
+          <text class="t t-src" x="76" y="344">box · rocky9</text>
+        </g>
+
+        <path class="wire bus" pathLength="1" style="--d:1s" d="M302 64 V340"/>
+        <path class="wire" pathLength="1" style="--d:1.15s" d="M240 82 H302"/>
+        <path class="wire" pathLength="1" style="--d:1.2s" d="M240 162 H302"/>
+        <path class="wire" pathLength="1" style="--d:1.25s" d="M240 242 H302"/>
+        <path class="wire" pathLength="1" style="--d:1.3s" d="M240 322 H302"/>
+        <text class="t t-ip" x="248" y="76" style="--t:1.3s">.200</text>
+        <text class="t t-ip" x="248" y="156" style="--t:1.35s">.201</text>
+        <text class="t t-ip" x="248" y="236" style="--t:1.4s">.202</text>
+        <text class="t t-ip" x="248" y="316" style="--t:1.45s">.203</text>
+        <text class="t t-cap" x="64" y="380" style="--t:1.25s">VMBR0 · 192.168.1.0/24</text>
+        <text class="t t-note" x="64" y="398" style="--t:1.6s">from share:iso and share:backup</text>
+
+        <g class="stamp">
+          <rect x="160" y="412" width="164" height="58" rx="5"/>
+          <rect class="inner" x="165" y="417" width="154" height="48" rx="3"/>
+          <text class="s-big" x="242" y="444" text-anchor="middle">AS BUILT</text>
+          <text class="s-small" x="242" y="458" text-anchor="middle">4/4 MACHINES READY</text>
+        </g>
+      </svg>
+    </figure>
+
+    <dl class="title-block">
+      <div><dt>Project</dt><dd>proxflow</dd></div>
+      <div class="wide"><dt>Title</dt><dd>AD lab, as built</dd></div>
+      <div><dt>Rev</dt><dd>0.1.0</dd></div>
+      <div><dt>Sheet</dt><dd>1 of 1</dd></div>
+      <div><dt>Scale</dt><dd>NTS</dd></div>
+      <div class="runtime"><dt>Runtime</dt><dd>Node.js 24.22.2</dd></div>
+      <div class="half"><dt>Drawn</dt><dd>demo mode</dd></div>
+      <div class="half"><dt>Zone</dt><dd data-zone aria-live="off">—</dd></div>
+    </dl>
   </div>
-</div>
+</section>
 
-<section id="why">
-  <div class="wrap two">
-    <div>
-      <p class="label">Why</p>
-      <h2>Labs on a network that can't reach the internet</h2>
-    </div>
-    <div>
-      <p>The Proxmox I build labs on has no internet. Installer ISOs sit on one share, community-built boxes on another, and every machine meant the same routine: restore the box, find it in the sidebar, clone it, then set its name, address and domain by hand. ProxFlow does that routine, and the setup inside each machine, from one canvas.</p>
-      <p class="mute">Nothing is downloaded while you work. The one option that needs internet, an official cloud image, says so where you pick it.</p>
+<!-- ───────────────────────── parts list ───────────────────────── -->
+<section class="region" id="install" aria-labelledby="h-parts">
+  <div class="region-head"><h2 id="h-parts">What's in the zip</h2><span class="ref">PF-02 · Parts list</span></div>
+  <div class="split">
+    <table class="parts">
+      <thead><tr><th scope="col">Item</th><th scope="col">Part</th><th scope="col">What it is</th><th scope="col" class="num">Size</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><code>node\node.exe</code></td><td>The official Node.js 24.22.2 runtime for Windows</td><td class="num">89.6&nbsp;MB</td></tr>
+        <tr><td class="num">2</td><td><code>app\proxflow.mjs</code></td><td>The server and every library it uses, in one file</td><td class="num">2.6&nbsp;MB</td></tr>
+        <tr><td class="num">3</td><td><code>app\web\</code></td><td>The web UI your browser opens</td><td class="num">0.7&nbsp;MB</td></tr>
+        <tr><td class="num">4</td><td><code>ProxFlow.cmd</code></td><td>Starts ProxFlow and opens your browser</td><td class="num">1&nbsp;KB</td></tr>
+        <tr><td class="num">5</td><td><code>ProxFlow-demo.cmd</code></td><td>The same, against a simulated Proxmox</td><td class="num">1&nbsp;KB</td></tr>
+        <tr><td class="num">6</td><td><code>README.txt</code>, licenses</td><td>Setup notes, Node.js license, third-party notices</td><td class="num">0.3&nbsp;MB</td></tr>
+      </tbody>
+    </table>
+    <div class="install-notes">
+      <ol class="steps">
+        <li>Right-click the zip, Properties, tick <b>Unblock</b>.</li>
+        <li>Extract it anywhere. No installer, no admin rights.</li>
+        <li>Double-click <code>ProxFlow.cmd</code>. Your browser opens ProxFlow.</li>
+      </ol>
+      <p class="small">Windows 10 or Server 2016 and newer, x64, with Edge, Chrome or Firefox. <code>ProxFlow-demo.cmd</code> runs everything against a simulated Proxmox, so you can try a whole lab at home first.</p>
+      <div class="oneliner">
+        <p class="small">Or from PowerShell:</p>
+        <div class="code"><pre><code id="ps">irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .</code></pre><button class="copy" type="button" data-copy="ps">Copy</button></div>
+      </div>
+      <p class="small"><a class="pad" href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">Release notes and SHA-256 checksums</a></p>
     </div>
   </div>
 </section>
 
-<section id="what">
-  <div class="wrap two">
-    <div>
-      <p class="label">What's in it</p>
-      <h2>Three screens and one zip</h2>
-    </div>
-    <table>
-      <tr><th>Part</th><th>Does</th></tr>
-      <tr><td>Map</td><td>Every node, VM, container, bridge and storage on one canvas, with live CPU and memory, power actions and snapshots</td></tr>
-      <tr><td>Connections</td><td>Adds a host with an API token or a password; Test explains certificate, login, network and permission problems</td></tr>
-      <tr><td>Build</td><td>Drag machines onto a canvas, join them to a domain, review the plan, deploy, destroy</td></tr>
-      <tr><td>Demo mode</td><td>A simulated Proxmox with ISOs, boxes and templates, for trying a whole lab anywhere</td></tr>
-      <tr><td>The zip</td><td>Node.js 24, the server and the web UI in one folder; nothing is installed or fetched at run time</td></tr>
+<!-- ───────────────────────── notes + schedule ───────────────────────── -->
+<section class="region" id="how" aria-labelledby="h-how">
+  <div class="region-head"><h2 id="h-how">How a lab gets built</h2><span class="ref">PF-03 · General notes</span></div>
+  <ol class="notes">
+    <li><b>Nothing is downloaded.</b> Every machine comes from ISOs, boxes (backups and templates) and disk images already on Proxmox storage, local or shared.</li>
+    <li><b>The plan is checked before anything exists:</b> permissions, storage, free addresses, names and passwords. Nothing is created until you press Deploy.</li>
+    <li><b>A box stored as a backup is restored once</b> and kept as a template tagged <code>pf-box</code>. The next lab clones it instead of restoring it again.</li>
+    <li><b>Settings travel on a small generated CD:</b> an answer file for Windows Setup, a cloud-init seed for Linux, a kickstart file for ESXi. It holds passwords, so it is ejected and deleted once the machine is ready.</li>
+    <li><b>Readiness comes from the QEMU guest agent.</b> A box without one is checked over SSH, RDP or LDAP on its static address instead.</li>
+    <li><b>Destroy lab removes exactly what the deployment created,</b> and keeps restored boxes for next time.</li>
+  </ol>
+
+  <div class="schedule-wrap">
+    <p class="ref schedule-title">PF-04 · Equipment schedule</p>
+    <table class="schedule">
+      <thead><tr><th scope="col">Mark</th><th scope="col">Machine</th><th scope="col">Built from</th><th scope="col">Set up by</th><th scope="col">Ready when</th></tr></thead>
+      <tbody>
+        <tr><td data-label="Mark">DC</td><td data-label="Machine">Domain controller</td><td data-label="Built from">Windows Server 2019, 2022 or 2025 ISO</td><td data-label="Set up by">Unattended install, then a new AD forest</td><td data-label="Ready when">The agent reports the domain is up, or LDAP answers</td></tr>
+        <tr><td data-label="Mark">WS</td><td data-label="Machine">Windows Server</td><td data-label="Built from">The ISO, or a Windows box or template</td><td data-label="Set up by">Unattended install, or a script sent through the guest agent</td><td data-label="Ready when">The agent reports it joined, or RDP answers</td></tr>
+        <tr><td data-label="Mark">LX</td><td data-label="Machine">Linux VM</td><td data-label="Built from">A box, template or disk image</td><td data-label="Set up by">A cloud-init seed; realmd joins the domain</td><td data-label="Ready when">cloud-init reports done, or SSH answers</td></tr>
+        <tr><td data-label="Mark">CT</td><td data-label="Machine">Container</td><td data-label="Built from">A container template or backup</td><td data-label="Set up by">Proxmox container settings</td><td data-label="Ready when">Proxmox reports its address</td></tr>
+        <tr><td data-label="Mark">EX</td><td data-label="Machine">ESXi host</td><td data-label="Built from">The ESXi installer ISO</td><td data-label="Set up by">A kickstart CD and nested virtualization</td><td data-label="Ready when">HTTPS answers on its address</td></tr>
+      </tbody>
     </table>
   </div>
 </section>
 
-<section id="how">
-  <div class="wrap">
-    <div class="two">
-      <div>
-        <p class="label">How it works</p>
-        <h2>What happens when you press Deploy</h2>
-        <ol class="steps">
-          <li>The plan is checked first: permissions, storage, free addresses, names and passwords. Nothing is created until you confirm.</li>
-          <li>A box stored as a backup is restored once and kept as a template tagged <code>pf-box</code>. Later labs clone it.</li>
-          <li>Each machine gets its settings on a small generated CD: an answer file for Windows Setup, a cloud-init seed for Linux, a kickstart file for ESXi.</li>
-          <li>ProxFlow waits for each machine to report in through the QEMU guest agent. A box without the agent is checked over SSH, RDP or LDAP on its static address.</li>
-          <li>The setup CD holds passwords, so it is ejected and deleted once the machine is ready. Destroy lab removes exactly what the deployment created.</li>
-        </ol>
-      </div>
-      <figure class="aside">
-        <a class="zoom" href="assets/shot-review.webp" aria-label="Open the full-size screenshot"><img class="shot" src="assets/shot-review.webp" width="1150" height="813" loading="lazy" alt="The Review and deploy dialog: four machines with their VMIDs, addresses and how ProxFlow will know each is ready, the files it will upload or reuse, and a note that Linux needs realmd, sssd and adcli to join the domain"></a>
-        <figcaption>Review and deploy: what will be created, what is reused from storage, and how each machine will be confirmed.</figcaption>
-      </figure>
-    </div>
-
-    <div class="matrix">
-      <table>
-        <tr><th>Machine</th><th>Built from</th><th>Set up by</th><th>Ready when</th></tr>
-        <tr><td data-label="Machine">Domain controller</td><td data-label="Built from">Windows Server 2019, 2022 or 2025 ISO</td><td data-label="Set up by">Unattended install, then a new AD forest</td><td data-label="Ready when">The agent reports the domain is up, or LDAP answers</td></tr>
-        <tr><td data-label="Machine">Windows Server</td><td data-label="Built from">The ISO, or a Windows box or template</td><td data-label="Set up by">Unattended install, or a script sent through the guest agent</td><td data-label="Ready when">The agent reports it joined, or RDP answers</td></tr>
-        <tr><td data-label="Machine">Linux VM</td><td data-label="Built from">A box (backup), template or disk image</td><td data-label="Set up by">cloud-init seed; realmd joins the domain</td><td data-label="Ready when">cloud-init reports done, or SSH answers</td></tr>
-        <tr><td data-label="Machine">Container</td><td data-label="Built from">A container template or backup</td><td data-label="Set up by">Proxmox container settings</td><td data-label="Ready when">Proxmox reports its address</td></tr>
-        <tr><td data-label="Machine">ESXi host</td><td data-label="Built from">The ESXi installer ISO</td><td data-label="Set up by">Kickstart CD, nested virtualization</td><td data-label="Ready when">HTTPS answers on its address</td></tr>
-      </table>
-    </div>
-  </div>
-</section>
-
-<section id="connect">
-  <div class="wrap two">
-    <div>
-      <p class="label">Connecting</p>
-      <h2>An API token and one certificate check</h2>
-      <ol class="steps">
-        <li>In Proxmox: Datacenter, Permissions, API Tokens, Add. For example <code>root@pam!proxflow</code>.</li>
-        <li>Give it <code>PVEAuditor</code> on <code>/</code> for the map, or <code>PVEVMAdmin</code> on <code>/</code> plus <code>PVEDatastoreUser</code> on your storages to build labs.</li>
-        <li>In ProxFlow: the connection button, Add connection, then Test. A wrong port, an unknown name, a rejected token or a missing permission is named, with what to change.</li>
-        <li>Proxmox uses a self-signed certificate. Compare the fingerprint with node, System, Certificates in Proxmox, then Trust this certificate. ProxFlow pins that exact certificate.</li>
-      </ol>
-    </div>
-    <figure class="aside">
-      <a class="zoom" href="assets/shot-connect.webp" aria-label="Open the full-size screenshot"><img class="shot" src="assets/shot-connect.webp" width="1225" height="870" loading="lazy" alt="The Connections dialog after Test: a card explaining the server uses a self-signed certificate, with its issuer, names, expiry and SHA-256 fingerprint and a Trust this certificate button"></a>
-      <figcaption>Test against a host with a self-signed certificate: the details to compare, then one button to pin it.</figcaption>
+<!-- ───────────────────────── detail views ───────────────────────── -->
+<section class="region" id="screens" aria-labelledby="h-screens">
+  <div class="region-head"><h2 id="h-screens">The app</h2><span class="ref">PF-05 · Details A–D, from demo mode</span></div>
+  <figure class="detail detail-wide">
+    <span class="bubble" aria-hidden="true">A</span>
+    <a href="assets/shot-build.webp" class="zoom"><img src="assets/shot-build.webp" width="1800" height="1125" loading="lazy" alt="The Build screen after a deploy: dc01 on top with ws01, ws02 and linux01 joined to its domain, and a panel listing all four machines as ready with their addresses and login lines"></a>
+    <figcaption><b>Build.</b> The lab on this sheet, in the app: four machines deployed, each with its address and the line to log in with.</figcaption>
+  </figure>
+  <figure class="detail detail-wide">
+    <span class="bubble" aria-hidden="true">B</span>
+    <a href="assets/shot-map.webp" class="zoom"><img src="assets/shot-map.webp" width="1800" height="1125" loading="lazy" alt="The Map: node pve1 with its guests, bridges and local storage, node pve2 beside it, shared storage below, and dc01 selected with its inspector open"></a>
+    <figcaption><b>Map.</b> Every node, guest, bridge and storage in the cluster. Selecting dc01 traces its network card to vmbr0 and its disk to local-lvm, next to power actions and snapshots.</figcaption>
+  </figure>
+  <div class="detail-pair">
+    <figure class="detail">
+      <span class="bubble" aria-hidden="true">C</span>
+      <a href="assets/shot-review.webp" class="zoom"><img src="assets/shot-review.webp" width="1150" height="813" loading="lazy" alt="The Review and deploy dialog: four machines with their VMIDs, addresses and how ProxFlow will know each is ready, the files it will upload or reuse, and a note about realmd for the Linux join"></a>
+      <figcaption><b>Review and deploy.</b> What will be created, what is reused from storage, and how each machine will be confirmed.</figcaption>
+    </figure>
+    <figure class="detail">
+      <span class="bubble" aria-hidden="true">D</span>
+      <a href="assets/shot-connect.webp" class="zoom"><img src="assets/shot-connect.webp" width="1225" height="870" loading="lazy" alt="The Connections dialog after Test: the host uses a self-signed certificate; its issuer, names, expiry and SHA-256 fingerprint are shown with a Trust this certificate button"></a>
+      <figcaption><b>Test connection.</b> A self-signed certificate, with the fingerprint to compare in Proxmox before you pin it.</figcaption>
     </figure>
   </div>
 </section>
 
-<section id="run">
-  <div class="wrap two">
-    <div>
-      <p class="label">Run it</p>
-      <h2>Double-click, or start it from a console</h2>
-      <p><code>ProxFlow.cmd</code> starts the server and opens your browser. Keep its window open while you work; close it or press Ctrl+C to stop. If port 3001 is busy, the next free one is used.</p>
-      <p class="mute">Connections, including token secrets, and lab history are kept in the <code>data</code> folder next to it, or in <code>%LOCALAPPDATA%\ProxFlow</code> when that folder can't be written. To upgrade, extract the new zip and copy <code>data</code> across.</p>
-    </div>
-    <div class="term" data-type aria-label="Example: starting ProxFlow in demo mode from PowerShell">
-      <div class="bar"><i></i><i></i><i></i><span>C:\Tools\proxflow</span></div>
-<pre><code><span class="p">PS&gt;</span> <span class="cmd" style="--n:19; --at:300ms">.\ProxFlow-demo.cmd</span>
+<!-- ───────────────────────── connecting + options ───────────────────────── -->
+<section class="region" id="connect" aria-labelledby="h-connect">
+  <div class="region-head"><h2 id="h-connect">Connecting to Proxmox</h2><span class="ref">PF-06 · Connection and options</span></div>
+  <div class="split">
+    <ol class="steps steps-wide">
+      <li>In Proxmox, open Datacenter, Permissions, API Tokens and add one, for example <code>root@pam!proxflow</code>.</li>
+      <li>Give it <code>PVEAuditor</code> on <code>/</code> for the map. To build labs, give it <code>PVEVMAdmin</code> on <code>/</code> and <code>PVEDatastoreUser</code> on your storages.</li>
+      <li>In ProxFlow, add the connection and press Test. A wrong port, an unknown name, a rejected token or a missing permission is named, with what to change.</li>
+      <li>Compare the certificate's fingerprint with the node's System, Certificates page in Proxmox, then trust it. ProxFlow pins that exact certificate.</li>
+    </ol>
+    <div id="config">
+      <table class="options">
+        <thead><tr><th scope="col">Option</th><th scope="col">Does</th></tr></thead>
+        <tbody>
+          <tr><td><code>--port 8080</code></td><td>Serves on another port. The default is 3001, or the next free one.</td></tr>
+          <tr><td><code>--host 127.0.0.1</code></td><td>Lets only this computer open ProxFlow.</td></tr>
+          <tr><td><code>--data-dir &lt;path&gt;</code></td><td>Keeps connections and lab history elsewhere. The default is <code>data</code> next to <code>ProxFlow.cmd</code>.</td></tr>
+          <tr><td><code>--demo</code></td><td>Uses the simulated Proxmox.</td></tr>
+          <tr><td><code>PVE_URL</code></td><td>Adds a host from the environment, with <code>PVE_TOKEN_ID</code> and <code>PVE_TOKEN_SECRET</code>.</td></tr>
+        </tbody>
+      </table>
+      <div class="console" aria-label="What ProxFlow-demo.cmd prints when it starts">
+<pre><code>PS C:\Tools\proxflow&gt; .\ProxFlow-demo.cmd
 
-<span class="out c" style="--at:1300ms">  ProxFlow 0.1.0  —  DEMO MODE (simulated Proxmox)</span>
+  ProxFlow 0.1.0  —  DEMO MODE (simulated Proxmox)
 
-<span class="out c" style="--at:1450ms">  Open:   http://localhost:3001</span>
-<span class="out c" style="--at:1600ms">          http://192.168.1.50:3001</span>
-<span class="out c" style="--at:1750ms">  Data:   C:\Tools\proxflow\data\demo</span>
+  Open:   http://localhost:3001
+  Data:   C:\Tools\proxflow\data\demo
 
-<span class="out c" style="--at:1900ms">  Leave this window open while you use ProxFlow.</span>
-<span class="out c" style="--at:2050ms">  Press Ctrl+C to stop.</span>
-<span class="out" style="--at:2200ms"><span class="cursor" aria-hidden="true"></span></span></code></pre>
+  Leave this window open while you use ProxFlow.</code></pre>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="config">
-  <div class="wrap two">
+<!-- ───────────────────────── verification ───────────────────────── -->
+<section class="region" id="tested" aria-labelledby="h-tested">
+  <div class="region-head"><h2 id="h-tested">What has been tested</h2><span class="ref">PF-07 · Verification and open items</span></div>
+  <div class="split">
     <div>
-      <p class="label">Configuration</p>
-      <h2>Options</h2>
-      <p class="mute">Pass them to <code>ProxFlow.cmd</code>. Hosts are added in the app; the environment variables are for running it as a service.</p>
-    </div>
-    <table>
-      <tr><th>Setting</th><th>Does</th></tr>
-      <tr><td>--port 8080</td><td>Serve on another port (default 3001, or the next free one)</td></tr>
-      <tr><td>--host 127.0.0.1</td><td>Only this computer can open ProxFlow</td></tr>
-      <tr><td>--data-dir &lt;path&gt;</td><td>Keep connections and lab history somewhere else</td></tr>
-      <tr><td>--demo</td><td>Use the simulated Proxmox</td></tr>
-      <tr><td>--no-open</td><td>Don't open a browser</td></tr>
-      <tr><td>PVE_URL</td><td>Add a host from the environment, with <code>PVE_TOKEN_ID</code> and <code>PVE_TOKEN_SECRET</code>; <code>PVE_FINGERPRINT</code> pins its certificate</td></tr>
-    </table>
-  </div>
-</section>
-
-<section id="tested">
-  <div class="wrap two">
-    <div>
-      <p class="label">Tested on</p>
-      <ul class="plain">
-        <li>Windows 11 Pro · the release zip with its bundled Node.js 24.22.2</li>
-        <li>GitHub Actions <code>windows-latest</code> on every release: a fresh extract with no Node.js on PATH, a 10-machine lab, and a read-only install folder</li>
-        <li>The simulated Proxmox VE 8.4 API in demo mode: an AD forest, Windows and Linux boxes with and without the guest agent, containers, nested ESXi, and 37 connection checks</li>
-        <li><em>Not</em> tested: a real Proxmox host. Everything above ran against the simulated API.</li>
+      <h3>Verified on</h3>
+      <ul class="ticks">
+        <li>Windows 11 Pro, running the release zip with its bundled Node.js 24.22.2.</li>
+        <li>GitHub Actions <code>windows-latest</code> on every release: a fresh extract with no Node.js on PATH, a 10-machine lab, and a read-only install folder.</li>
+        <li>The simulated Proxmox VE 8.4 API in demo mode: an AD forest, Windows and Linux boxes with and without the guest agent, containers, nested ESXi, and 37 connection checks.</li>
       </ul>
+      <p class="hold"><b>Not yet tested on a real Proxmox host.</b> Everything above ran against the simulated API.</p>
     </div>
     <div>
-      <p class="label">Known issues</p>
-      <ul class="plain">
-        <li>Reading the config inside backups, importing disk images (Proxmox 8.3+) and the guest-agent permission names on Proxmox 9 follow the documentation and have not met real hardware yet.</li>
+      <h3>Open items</h3>
+      <ul class="ticks open">
+        <li>Reading the config inside backups, importing disk images (Proxmox 8.3+) and Proxmox 9's guest-agent permission names follow the documentation and haven't met real hardware yet.</li>
         <li>Nested ESXi types its boot option at the installer menu. If that is missed, press Shift+O in the console and add <code>ks=cdrom:/KS.CFG</code>.</li>
         <li>The Windows edition list assumes Microsoft's usual image order inside the ISO.</li>
         <li>A Linux box joins the domain only if <code>realmd</code>, <code>sssd</code> and <code>adcli</code> are already in the image.</li>
-        <li>ProxFlow has no login of its own. Start it with <code>--host 127.0.0.1</code> on a shared network.</li>
+        <li>ProxFlow has no login of its own. On a shared network, start it with <code>--host 127.0.0.1</code>.</li>
       </ul>
     </div>
   </div>
+  <table class="revisions">
+    <thead><tr><th scope="col">Rev</th><th scope="col">Date</th><th scope="col">Description</th></tr></thead>
+    <tbody><tr><td>0.1.0</td><td>2026-11-05</td><td>First release: map, connections, lab builder, Windows zip. <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">Download</a></td></tr></tbody>
+  </table>
 </section>
 </main>
 
-<footer>
-  <div class="wrap">
-    <span>MIT · <a href="https://github.com/Real-Fruit-Snacks/proxflow">Source</a> · <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases">Releases</a></span>
-    <span><a href="https://real-fruit-snacks.github.io/">RFS</a> · Real tools. No filler. · <a href="https://github.com/Real-Fruit-Snacks/rfs-brand/blob/main/BRAND.md">Brand</a></span>
-  </div>
+<footer class="colophon">
+  <p>proxflow is MIT licensed. <a href="https://github.com/Real-Fruit-Snacks/proxflow">Source</a> · <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases">Releases</a> · <a href="https://github.com/Real-Fruit-Snacks/proxflow/blob/main/docs/DEVELOPMENT.md">Development</a></p>
+  <p>Set in Archivo and Martian Mono. Made by <a href="https://github.com/Real-Fruit-Snacks">Real-Fruit-Snacks</a>.</p>
 </footer>
 
-<script src="assets/site.js"></script>
-<script src="assets/proxflow.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
