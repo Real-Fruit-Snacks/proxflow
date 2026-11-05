@@ -1,0 +1,5 @@
+# Keep LF in the repository and working tree on every OS (Windows CI included), so builds are identical.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.zip binary

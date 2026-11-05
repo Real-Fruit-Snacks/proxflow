@@ -1,0 +1,27 @@
+{
+  "name": "proxflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React Flow-style map and offline lab builder for Proxmox VE",
+  "packageManager": "pnpm@10.34.9",
+  "scripts": {
+    "dev": "concurrently -k -n mock,api,web -c magenta,cyan,green \"pnpm --filter @proxflow/mock-pve dev\" \"pnpm --filter @proxflow/server dev:mock\" \"pnpm --filter @proxflow/web dev\"",
+    "dev:real": "concurrently -k -n api,web -c cyan,green \"pnpm --filter @proxflow/server dev\" \"pnpm --filter @proxflow/web dev\"",
+    "typecheck": "pnpm -r typecheck",
+    "smoke": "node apps/server/scripts/smoke-connections.mjs",
+    "smoke:build": "node apps/server/scripts/smoke-build.mjs",
+    "build": "pnpm --filter @proxflow/web build",
+    "release": "node scripts/release.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "esbuild": "^0.28.2",
+    "fflate": "^0.8.3",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

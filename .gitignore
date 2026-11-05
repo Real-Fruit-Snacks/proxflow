@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+# saved Proxmox connections (contain secrets)
+apps/server/data/
+# self-signed certs for the mock HTTPS listener
+apps/mock-pve/certs/
+# release build output and downloaded Node.js runtimes
+release/
+.cache/

@@ -1,0 +1,70 @@
+@import 'tailwindcss';
+@import '@xyflow/react/dist/style.css';
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #09090b;
+  color: #f4f4f5;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Node emphasis states driven from Canvas.tsx */
+.react-flow__node {
+  transition: opacity 0.2s ease;
+}
+.react-flow__node.unrelated {
+  opacity: 0.5;
+}
+.react-flow__node.related {
+  opacity: 1;
+}
+.react-flow__node.dimmed {
+  opacity: 0.15;
+}
+
+/* Coloured glow on nodes one hop from the hovered/selected node (colour = relation kind) */
+.react-flow__node > *:first-child {
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.react-flow__node.rel-net > *:first-child {
+  box-shadow:
+    0 0 0 1.5px rgba(56, 189, 248, 0.9),
+    0 0 16px rgba(56, 189, 248, 0.35);
+}
+.react-flow__node.rel-storage > *:first-child {
+  box-shadow:
+    0 0 0 1.5px rgba(245, 158, 11, 0.9),
+    0 0 16px rgba(245, 158, 11, 0.3);
+}
+
+.react-flow__attribution {
+  background: transparent;
+  color: #52525b;
+}
+.react-flow__attribution a {
+  color: #71717a;
+}
+
+.react-flow__minimap {
+  border-radius: 0.6rem;
+}
+
+/* Thin dark scrollbars for the inspector */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 transparent;
+}
