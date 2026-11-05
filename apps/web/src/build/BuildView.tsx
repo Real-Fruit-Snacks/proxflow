@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } fro
 import { validateLab } from '@proxflow/shared';
 import { Brand, ConnectionButton, ModeSwitch, type CommonProps } from '../components/AppChrome';
 import { ActionButton } from '../components/ConfirmButton';
-import { useDeployment, useInventory } from './api';
+import { ApiError, useDeployment, useInventory } from './api';
 import { BLUEPRINT_SIZE, BlueprintNode, type BlueprintFlowNode } from './BlueprintNode';
 import { DeployDialog } from './DeployDialog';
 import { DeploymentPanel } from './DeploymentPanel';
@@ -78,9 +78,11 @@ export function BuildView({ common, active, onShowOnMap }: Props) {
   const dep = depQ.data;
   const deploying = dep?.status === 'running' || dep?.status === 'destroying';
   useEffect(() => {
-    // The deployment was pruned on the server (or never existed): forget it.
-    if (depQ.isError && design.activeDeployment) setDesign((d) => ({ ...d, activeDeployment: undefined }));
-  }, [depQ.isError, design.activeDeployment, setDesign]);
+    // The deployment was pruned on the server (or never existed): forget it. Any other error (ProxFlow
+    // restarting, the laptop waking up) is temporary — keep it, or the lab could no longer be destroyed.
+    const gone = depQ.error instanceof ApiError && depQ.error.status === 404;
+    if (gone && design.activeDeployment) setDesign((d) => ({ ...d, activeDeployment: undefined }));
+  }, [depQ.error, design.activeDeployment, setDesign]);
 
   // ───── canvas state (React Flow owns measurement/selection; the design owns everything else) ─────
   const [nodes, setNodes, onNodesChangeBase] = useNodesState<BlueprintFlowNode>([]);
@@ -224,6 +226,7 @@ export function BuildView({ common, active, onShowOnMap }: Props) {
   };
 
   // Fit-to-view must wait until React Flow has measured every card, or new cards end up off-screen.
+  const [canvasFocus, setCanvasFocus] = useState(false);
   const pendingFit = useRef(true); // true → fit the first time the screen is visible with cards on it
   const usePreset = (p: Preset) => {
     if (design.machines.length && !window.confirm(`Replace the ${design.machines.length} machine(s) on the canvas with "${p.label}"?`)) return;
@@ -293,7 +296,13 @@ export function BuildView({ common, active, onShowOnMap }: Props) {
             isValidConnection={isValidConnection}
             onPaneClick={() => setSelectedId(null)}
             colorMode="dark"
-            deleteKeyCode={active ? ['Delete', 'Backspace'] : null}
+            // Delete/Backspace only while the canvas has focus: React Flow listens on the whole page, so a
+            // Backspace after clicking a button in the side panel would otherwise delete the selected machine.
+            onFocus={() => setCanvasFocus(true)}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setCanvasFocus(false);
+            }}
+            deleteKeyCode={active && canvasFocus ? ['Delete', 'Backspace'] : null}
             connectionLineStyle={{ stroke: '#8b5cf6', strokeWidth: 2 }}
             minZoom={0.2}
             maxZoom={1.8}

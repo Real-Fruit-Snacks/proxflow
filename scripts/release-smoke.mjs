@@ -1,5 +1,5 @@
 // Tests a release package exactly as a user would get it: extracted with the OS's own tools into a
-// folder with spaces and brackets, started with a stripped-down PATH (no Node.js, pnpm or git), in
+// folder with spaces, brackets and an ampersand, started with a stripped-down PATH (no Node.js, pnpm or git), in
 // demo mode — then the web UI is checked and the full lab-builder suite runs against it.
 //
 //   node scripts/release-smoke.mjs release/proxflow-<v>-windows-x64.zip [--port 3101] [--readonly-data]
@@ -29,14 +29,15 @@ const check = (label, ok, detail) => {
 };
 
 // ── 1. extract like a user would ──
-const tmp = mkdtempSync(join(tmpdir(), 'proxflow smoke ('));
+const tmp = mkdtempSync(join(tmpdir(), 'proxflow smoke & co ('));
 const profile = join(tmp, 'profile');
 console.log(`\n── extract to "${tmp}" ──`);
 if (WIN) execFileSync('powershell.exe', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${archive}' -DestinationPath '${tmp}'`], { stdio: 'inherit' });
 else execFileSync('tar', ['-xzf', archive, '-C', tmp], { stdio: 'inherit' });
 const top = readdirSync(tmp).find((f) => f.startsWith('proxflow-'));
 const dir = join(tmp, top);
-const launcher = join(dir, WIN ? 'ProxFlow.cmd' : 'proxflow.sh');
+// Windows: the demo launcher itself, the way a first-time user starts it.
+const launcher = join(dir, WIN ? 'ProxFlow-demo.cmd' : 'proxflow.sh');
 check('package extracted with launcher, runtime and app', existsSync(launcher) && existsSync(join(dir, WIN ? 'node/node.exe' : 'node/bin/node')) && existsSync(join(dir, 'app/proxflow.mjs')));
 
 // ── 2. an environment with nothing installed ──
@@ -70,7 +71,7 @@ if (opts['readonly-data']) {
 }
 
 // ── 3. start it ──
-const args = ['--demo', '--no-open', '--port', String(PORT)];
+const args = [...(WIN ? [] : ['--demo']), '--no-open', '--port', String(PORT)];
 const child = WIN
   ? spawn('cmd.exe', ['/d', '/s', '/c', `""${launcher}" ${args.join(' ')}"`], { env, cwd: tmp, windowsVerbatimArguments: true })
   : spawn(launcher, args, { env, cwd: tmp, detached: true });

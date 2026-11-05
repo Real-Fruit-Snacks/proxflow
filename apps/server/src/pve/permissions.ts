@@ -5,11 +5,18 @@
 import type { PermissionSummary } from '@proxflow/shared';
 import type { RawPermissions } from './types.js';
 
-/** True if `priv` is granted on `/` or on/under any of `roots`. */
+/**
+ * True if `priv` reaches anything under `roots` (or `/` itself when `roots` is empty). Proxmox maps each
+ * privilege to its propagate flag: 1 = granted on the path and everything below, 0 = on that path only.
+ */
 function hasPriv(perms: RawPermissions, priv: string, roots: string[]): boolean {
-  return Object.entries(perms).some(
-    ([path, privs]) => privs?.[priv] === 1 && (path === '/' || roots.some((r) => path === r || path.startsWith(`${r}/`))),
-  );
+  return Object.entries(perms).some(([path, privs]) => {
+    const v = privs?.[priv];
+    if (v === undefined || v === null) return false;
+    const propagates = Number(v) === 1;
+    if (path === '/') return propagates || roots.length === 0;
+    return roots.some((r) => (path === r ? propagates : path.startsWith(`${r}/`)));
+  });
 }
 
 export function summarizePermissions(perms: RawPermissions): PermissionSummary {

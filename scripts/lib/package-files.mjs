@@ -1,21 +1,23 @@
 // Launchers and the README that ship inside each release package.
 const crlf = (s) => s.replace(/\r?\n/g, '\r\n');
 
-export function windowsFiles(version) {
-  return {
-    'ProxFlow.cmd': crlf(`@echo off
-rem ProxFlow launcher: runs the bundled Node.js runtime, nothing else is needed.
-title ProxFlow
-"%~dp0node\\node.exe" "%~dp0app\\proxflow.mjs" %*
-if errorlevel 1 (
+// --use-system-ca: trust what Windows trusts (e.g. an internal CA rolled out by group policy), not only
+// Node's built-in list. The pause keeps the window open after any failure, crash codes included.
+const launcher = (what, title, extra) => `@echo off
+rem ${what}
+title ${title}
+"%~dp0node\\node.exe" --use-system-ca "%~dp0app\\proxflow.mjs"${extra} %*
+if not "%errorlevel%"=="0" (
   echo.
   pause
 )
-`),
-    'ProxFlow-demo.cmd': crlf(`@echo off
-rem Starts ProxFlow with a built-in simulated Proxmox (nothing real is touched).
-call "%~dp0ProxFlow.cmd" --demo %*
-`),
+`;
+
+export function windowsFiles(version) {
+  return {
+    'ProxFlow.cmd': crlf(launcher('ProxFlow launcher: runs the bundled Node.js runtime, nothing else is needed.', 'ProxFlow', '')),
+    // Not "call ProxFlow.cmd": call expands % and ^ in the folder path a second time.
+    'ProxFlow-demo.cmd': crlf(launcher('Starts ProxFlow with a built-in simulated Proxmox (nothing real is touched).', 'ProxFlow demo', ' --demo')),
     'README.txt': crlf(readme(version, 'windows')),
   };
 }
@@ -25,7 +27,7 @@ export function linuxFiles(version) {
     'proxflow.sh': `#!/bin/sh
 # ProxFlow launcher: runs the bundled Node.js runtime, nothing else is needed.
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec "$DIR/node/bin/node" "$DIR/app/proxflow.mjs" "$@"
+exec "$DIR/node/bin/node" --use-system-ca "$DIR/app/proxflow.mjs" "$@"
 `,
     'README.txt': readme(version, 'linux'),
   };
@@ -68,8 +70,13 @@ touching anything real.
 CONNECT TO YOUR PROXMOX
 -----------------------
 1. In Proxmox: Datacenter > Permissions > API Tokens > Add (e.g. root@pam!proxflow).
-   Untick "Privilege Separation", or give the token the PVEVMAdmin role on "/".
-   PVEAuditor is enough if you only want the map.
+   Untick "Privilege Separation" so the token has its user's rights. A token with rights of
+   its own needs, under Datacenter > Permissions > Add:
+     PVEAuditor on "/"                          the map: nodes, bridges, storage
+     PVEVMAdmin on "/"                          power, snapshots and building labs
+     PVEDatastoreAdmin on "/storage"            lab disks, setup CDs and restoring boxes
+     PVESDNUser on "/sdn/zones/localnetwork"    attaching lab machines to bridges (Proxmox 8+)
+   PVEAuditor alone is enough if you only want the map.
 2. In ProxFlow: the connection button (top right) > Add connection.
    Type the host (e.g. 192.168.1.10), the token ID and secret, then "Test connection".
 3. Proxmox uses a self-signed certificate: compare the fingerprint ProxFlow shows with

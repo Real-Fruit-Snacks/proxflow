@@ -14,12 +14,47 @@ import { planWindows } from './plan-windows.js';
 import type { StepDef } from './steps.js';
 
 /** Privilege granted on `path` or inherited from an ancestor ACL path. */
+/** Proxmox maps each privilege to its propagate flag: 1 reaches child paths, 0 only the path itself. */
 function granted(perms: RawPermissions, priv: string, path: string): boolean {
   const parts = path.split('/').filter(Boolean);
   for (let i = parts.length; i >= 0; i--) {
-    if (perms[`/${parts.slice(0, i).join('/')}`]?.[priv]) return true;
+    const v = perms[`/${parts.slice(0, i).join('/')}`]?.[priv];
+    if (v === undefined || v === null) continue;
+    if (i === parts.length || Number(v) === 1) return true;
   }
   return false;
+}
+
+/**
+ * Proxmox also checks access to each source volume: a backup needs Datastore.AllocateSpace on its storage
+ * and VM.Backup on the VMID it was taken from; an ISO or container template needs read access to its storage.
+ */
+function sourceAccessIssues(spec: LabSpec, perms: RawPermissions, restoreNeeded: (volid: string) => boolean): LabIssue[] {
+  const out: LabIssue[] = [];
+  const seen = new Set<string>();
+  const sid = (volid: string) => volid.slice(0, volid.indexOf(':'));
+  for (const m of spec.machines) {
+    const s = 'source' in m ? m.source : undefined;
+    const backup = s?.type === 'backup' ? s.volid : undefined;
+    if (backup && !seen.has(backup) && restoreNeeded(backup)) {
+      seen.add(backup);
+      const owner = /vzdump-(?:qemu|lxc)-(\d+)-/.exec(backup)?.[1];
+      const lack = [
+        !granted(perms, 'Datastore.AllocateSpace', `/storage/${sid(backup)}`) && `Datastore.AllocateSpace on /storage/${sid(backup)}`,
+        owner && !granted(perms, 'VM.Backup', `/vms/${owner}`) && `VM.Backup on /vms/${owner}`,
+      ].filter(Boolean);
+      if (lack.length) out.push({ level: 'warning', machine: m.id, message: `Proxmox only lets this token restore ${backup} with ${lack.join(' and ')}.` });
+    }
+    const read = [m.kind === 'esxi' ? m.iso : undefined, s?.type === 'iso' ? s.iso : undefined, s?.type === 'vztmpl' ? s.volid : undefined];
+    for (const v of read) {
+      if (!v || seen.has(v) || !v.includes(':')) continue;
+      seen.add(v);
+      const path = `/storage/${sid(v)}`;
+      if (!granted(perms, 'Datastore.Audit', path) && !granted(perms, 'Datastore.AllocateSpace', path))
+        out.push({ level: 'warning', machine: m.id, message: `Proxmox only lets this token use ${v} with Datastore.Audit on ${path}.` });
+    }
+  }
+  return out;
 }
 
 function privilegeIssues(spec: LabSpec, bundle: InventoryBundle): LabIssue[] {
@@ -88,6 +123,10 @@ const dispatch = (pc: PlanCtx, m: MachineSpec, vmid: number, mac: string): Plann
 export function planLab(spec: LabSpec, bundle: InventoryBundle, opts: { tag: string; boxCache: BoxCache }): { plan: LabPlan; steps: StepDef[] } {
   const inv = bundle.inv;
   const issues: LabIssue[] = [...validateLab(spec, inv), ...privilegeIssues(spec, bundle)];
+  if (bundle.perms) {
+    const restoreNeeded = (volid: string) => !opts.boxCache.lookup(spec.target.conn, volid, spec.target.node, inv.vmTemplates);
+    issues.push(...sourceAccessIssues(spec, bundle.perms, restoreNeeded));
+  }
 
   const used = new Set(inv.usedVmids);
   let next = Math.max(100, inv.nextId || 100);

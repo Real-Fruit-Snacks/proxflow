@@ -6,7 +6,7 @@
 import { prefixToNetmask, type Cidr } from '@proxflow/shared';
 import { buildIso } from '../../iso/iso9660.js';
 
-export type EsxiOptions = { hostname: string; rootPassword: string; ip: string; cidr: Cidr; gateway?: string; dns: string[]; vlan?: number };
+export type EsxiOptions = { hostname: string; rootPassword: string; ip: string; cidr: Cidr; gateway?: string; dns: string[] };
 
 export const ESXI_BOOT_APPEND = ' ks=cdrom:/KS.CFG';
 
@@ -18,7 +18,8 @@ export function esxiKickstart(o: EsxiOptions): string {
     o.gateway ? `--gateway=${o.gateway}` : '',
     o.dns.length ? `--nameserver=${o.dns.join(',')}` : '',
     `--hostname=${o.hostname}`,
-    o.vlan ? `--vlanid=${o.vlan}` : '',
+    // No --vlanid: Proxmox already tags the VM's port (net0 tag=N) and strips the tag on the way in,
+    // so ESXi tagging as well would put its management network on a VLAN nothing answers on.
   ]
     .filter(Boolean)
     .join(' ');

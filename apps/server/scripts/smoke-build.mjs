@@ -154,6 +154,34 @@ console.log('\n── failure handling ──');
   check('failed lab can be destroyed (removes the uploaded seed)', del.status === 200 && gone.status === 'destroyed', gone.log.slice(-3));
 }
 
+console.log('\n── destroy only deletes what is still the lab\'s ──');
+{
+  // Proxmox hands a freed VMID out again. Simulate that: the lab's container now belongs to another deployment.
+  // The simulated Proxmox: :8006 under pnpm dev, a random local port inside a release's --demo.
+  const mockUrl = (await call('GET', '/connections')).json.find((c) => c.id === 'mock')?.url ?? 'http://localhost:8006';
+  const PVE = `${mockUrl}/api2/json`;
+  const pve = (method, path, body) =>
+    fetch(`${PVE}${path}`, {
+      method,
+      headers: { Authorization: 'PVEAPIToken=root@pam!proxflow=mock-secret', ...(body ? { 'content-type': 'application/x-www-form-urlencoded' } : {}) },
+      body: body ? new URLSearchParams(body).toString() : undefined,
+    }).then((r) => r.json());
+  const s = spec('Reuse', [base('r', 'reuse01', { kind: 'lxc', source: { type: 'vztmpl', volid: 'share:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst' }, unprivileged: true, nesting: false, cores: 1, memoryMiB: 256, diskGiB: 4 })]);
+  const r = await call('POST', '/labs/deploy', s);
+  const d = await waitFor(r.json.id, ['succeeded', 'warning', 'failed'], 60_000);
+  const vmid = d.created[0]?.vmid;
+  check('small lab deployed', d.status === 'succeeded' && vmid, d.log.slice(-3));
+  await pve('PUT', `/nodes/pve1/lxc/${vmid}/config`, { description: 'Created by ProxFlow — lab "Other" (deployment someone)' });
+  await call('POST', `/labs/deployments/${d.id}/destroy`);
+  const gone = await waitFor(d.id, ['destroyed'], 30_000);
+  const { json: topo } = await call('GET', '/topology');
+  check('a reused VMID is left alone', topo.nodes.some((n) => n.data.kind === 'guest' && n.data.vmid === vmid), gone.log.slice(-3));
+  check('…and the log says why', gone.log.some((l) => l.level === 'warn' && l.msg.includes(`Left ${vmid} alone`)), gone.log.slice(-3));
+  await pve('POST', `/nodes/pve1/lxc/${vmid}/status/stop`);
+  await sleep(2500);
+  await pve('DELETE', `/nodes/pve1/lxc/${vmid}?purge=1`);
+}
+
 console.log('\n── online-only catalog image: Import fix ──');
 {
   const s = spec('Online', [base('u', 'cloud01', { kind: 'linux-vm', source: { type: 'catalog', image: 'ubuntu-24.04' }, packages: [], memoryMiB: 1024, diskGiB: 16 })]);

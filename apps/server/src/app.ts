@@ -36,6 +36,14 @@ export function createApp(o: ServerOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '1mb' }));
+  // Changes must come as JSON. A web page on another site can only send that after a CORS preflight, which
+  // ProxFlow never approves, so it can't start, stop or delete anything through someone's browser.
+  app.use('/api', (req, res, next) => {
+    // (Read the header itself: req.is() answers null for requests without a body, like power actions.)
+    const type = String(req.headers['content-type'] ?? '').split(';')[0]!.trim().toLowerCase();
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || type === 'application/json') return next();
+    res.status(415).json({ error: 'Send requests that change something with Content-Type: application/json', status: 415 });
+  });
   app.use('/api', createRoutes(manager));
   app.use('/api', createBuildRoutes(manager, deployments, boxCache));
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found', status: 404 }));
@@ -67,7 +75,12 @@ export function createApp(o: ServerOptions) {
       // Upstream 4xx (bad params) passes through; auth/availability problems become 502 so the
       // browser never confuses a Proxmox 401 with an app-level auth failure.
       const status = err.status === 400 || err.status === 404 ? err.status : 502;
-      const message = err.status === 401 || err.status === 403 ? `Proxmox rejected the credentials for this connection (${err.message})` : err.message;
+      const message =
+        err.status === 401
+          ? `Proxmox rejected the credentials for this connection (${err.message})`
+          : err.status === 403
+            ? `Proxmox denied permission: the user or token is missing a privilege for this (${err.message})`
+            : err.message;
       res.status(status).json({ error: message, status, details: err.details });
       return;
     }

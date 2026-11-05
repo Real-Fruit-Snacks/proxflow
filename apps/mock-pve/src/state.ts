@@ -431,6 +431,8 @@ export function runTask(node: string, type: string, id: string, work: () => stri
   const upid = `UPID:${node}:${hex8(pid)}:${hex8(pstart)}:${hex8(starttime)}:${type}:${id}:${USER}:`;
   const task: MockTask = { upid, node, pid, pstart, starttime, type, id, user: USER, status: 'running', log: [`starting ${type} ${id}`] };
   tasks.set(upid, task);
+  // A long demo session runs thousands of tasks: keep the newest, like Proxmox's own task list.
+  if (tasks.size > 2000) for (const [k, t] of tasks) if (t.status !== 'running' && tasks.size > 1500) tasks.delete(k);
   if (progressOf) {
     for (const pct of [20, 45, 70, 95]) setTimeout(() => task.status === 'running' && task.log.push(`${progressOf}: ${pct}%`), (delayMs * pct) / 100);
   }

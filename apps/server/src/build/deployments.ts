@@ -1,8 +1,7 @@
 /** Runs lab plans: a dependency-ordered, concurrency-limited step executor with persistence. */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
 import type { Deployment, DeploymentStep, LabPlan, LabSpec, StepStatus } from '@proxflow/shared';
+import { readJsonFile, writeJsonFile } from '../json-file.js';
 import type { PveClient } from '../pve/client.js';
 import type { BoxCache } from './box-cache.js';
 import type { InventoryBundle } from './inventory.js';
@@ -43,20 +42,15 @@ export class DeploymentManager {
     private readonly file: string,
     private readonly onGuestsChanged: (conn: string) => void = () => {},
   ) {
-    if (!existsSync(file)) return;
-    try {
-      const parsed = JSON.parse(readFileSync(file, 'utf8')) as { deployments?: Deployment[] };
-      for (const d of parsed.deployments ?? []) {
-        // A restart interrupts anything that was in flight; say so instead of pretending it's still running.
-        if (d.status === 'running' || d.status === 'destroying') {
-          d.status = 'interrupted';
-          for (const s of d.steps) if (s.status === 'running' || s.status === 'pending') s.status = 'cancelled';
-          this.refreshMachines(d);
-        }
-        this.deps.set(d.id, d);
+    const parsed = readJsonFile<{ deployments?: Deployment[] }>(file);
+    for (const d of parsed?.deployments ?? []) {
+      // A restart interrupts anything that was in flight; say so instead of pretending it's still running.
+      if (d.status === 'running' || d.status === 'destroying') {
+        d.status = 'interrupted';
+        for (const s of d.steps) if (s.status === 'running' || s.status === 'pending') s.status = 'cancelled';
+        this.refreshMachines(d);
       }
-    } catch (err) {
-      console.error(`[server] could not read ${file}:`, errMsg(err));
+      this.deps.set(d.id, d);
     }
   }
 
@@ -119,14 +113,24 @@ export class DeploymentManager {
       let problems = 0;
       for (const g of [...dep.created].reverse()) {
         try {
-          const st = await client.guestStatus(dep.node, g.type, g.vmid).catch((e: unknown) => {
+          const cfg = await client.guestConfig(dep.node, g.type, g.vmid).catch((e: unknown) => {
             if (/does not exist|no such/i.test(errMsg(e))) return null;
             throw e;
           });
-          if (!st) {
+          if (!cfg) {
             this.log(dep, 'info', `${g.name} (${g.vmid}) was already gone`);
             continue;
           }
+          // VMIDs are reused once freed: only delete the guest if it is still the one this deployment made.
+          const owner = [...String(cfg.description ?? '').matchAll(/\(deployment ([A-Za-z0-9-]+)\)/g)].at(-1)?.[1]; // the lab name may contain the phrase too
+          const name = String((g.type === 'qemu' ? cfg.name : cfg.hostname) ?? '');
+          const ours = String(cfg.template ?? '') !== '1' && (owner ? owner === dep.id : name === g.name);
+          if (!ours) {
+            problems++;
+            this.log(dep, 'warn', `Left ${g.vmid} alone: it's now "${name || 'unnamed'}"${owner ? ` from deployment ${owner}` : ''}, not this lab's ${g.name}`);
+            continue;
+          }
+          const st = await client.guestStatus(dep.node, g.type, g.vmid);
           if (st.status === 'running') await waitForTask(ctx, await client.guestStatusAction(dep.node, g.type, g.vmid, 'stop'), { what: `Stop ${g.name}` });
           await waitForTask(ctx, await client.destroyGuest(dep.node, g.type, g.vmid), { what: `Delete ${g.name}` });
           this.log(dep, 'info', `Deleted ${g.name} (${g.vmid})`);
@@ -334,10 +338,7 @@ export class DeploymentManager {
     clearTimeout(this.saveTimer);
     this.saveTimer = undefined;
     try {
-      mkdirSync(dirname(this.file), { recursive: true });
-      const tmp = `${this.file}.tmp`;
-      writeFileSync(tmp, JSON.stringify({ version: 1, deployments: this.list() }, null, 2));
-      renameSync(tmp, this.file);
+      writeJsonFile(this.file, { version: 1, deployments: this.list() });
     } catch (err) {
       console.error('[server] could not save deployments:', errMsg(err));
     }

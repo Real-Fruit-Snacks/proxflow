@@ -4,12 +4,14 @@
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { isIP } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { startServer, type RunningServer, type ServerOptions } from './app.js';
 import { envConnection } from './env.js';
+import { readJsonFile, writeJsonFile } from './json-file.js';
 
 declare const __PROXFLOW_VERSION__: string | undefined;
 const VERSION = typeof __PROXFLOW_VERSION__ !== 'undefined' ? __PROXFLOW_VERSION__ : 'dev';
@@ -93,6 +95,15 @@ function ensureWritable(dir: string) {
   rmSync(probe, { force: true });
 }
 
+function forgetDemoHistory(dir: string) {
+  const deployments = resolve(dir, 'deployments.json');
+  const d = readJsonFile<{ deployments?: { conn?: string }[] }>(deployments);
+  if (d?.deployments) writeJsonFile(deployments, { ...d, deployments: d.deployments.filter((x) => x.conn !== 'mock') });
+  const boxes = resolve(dir, 'boxes.json');
+  const b = readJsonFile<{ boxes?: { conn?: string }[] }>(boxes);
+  if (b?.boxes) writeJsonFile(boxes, { ...b, boxes: b.boxes.filter((x) => x.conn !== 'mock') });
+}
+
 const lanAddresses = () =>
   Object.values(networkInterfaces())
     .flat()
@@ -105,8 +116,11 @@ async function main() {
   if (args.version) return void console.log(VERSION);
 
   const explicitPort = args.port !== undefined;
-  const port = explicitPort ? Number(args.port) : Number(process.env.PORT ?? DEFAULT_PORT);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) fail(`"${args.port}" isn't a valid port number.`);
+  const rawPort = args.port ?? process.env.PORT ?? String(DEFAULT_PORT);
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    fail(`"${rawPort}" isn't a valid port number${explicitPort ? '' : ' (from the PORT environment variable)'}.`);
+  }
 
   const chosen = args['data-dir'] ?? process.env.PROXFLOW_DATA_DIR;
   // Demo history lives apart from real connections and labs.
@@ -131,6 +145,9 @@ async function main() {
 
   const seeds: NonNullable<ServerOptions['seeds']> = [];
   if (args.demo) {
+    // The simulated Proxmox starts empty every time, so labs and boxes from an earlier demo run no longer
+    // exist and their VMIDs will be handed out again. Forget them (labs on real connections are kept).
+    forgetDemoHistory(dataDir);
     const { startMock } = await import('@proxflow/mock-pve');
     const mock = await startMock({ port: 0, host: '127.0.0.1' });
     seeds.push({
@@ -159,8 +176,11 @@ async function main() {
     }
   }
 
-  const local = `http://localhost:${server.port}`;
-  const others = !args.host || args.host === '0.0.0.0' ? lanAddresses().map((a) => `http://${a}:${server!.port}`) : [];
+  // Listening on one specific address: that's the only one that works, so open and print it.
+  const wildcard = !args.host || args.host === '0.0.0.0' || args.host === '::';
+  const shown = wildcard ? 'localhost' : isIP(args.host!) === 6 ? `[${args.host}]` : args.host!;
+  const local = `http://${shown}:${server.port}`;
+  const others = wildcard ? lanAddresses().map((a) => `http://${a}:${server!.port}`) : [];
   console.log(`\n  ProxFlow ${VERSION}${args.demo ? '  —  DEMO MODE (simulated Proxmox, nothing real is touched)' : ''}\n`);
   console.log(`  Open:   ${local}`);
   if (others.length) console.log(`          ${others.join('\n          ')}`);

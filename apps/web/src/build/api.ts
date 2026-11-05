@@ -37,6 +37,7 @@ export const buildApi = {
   plan: (spec: LabSpec) => http<LabPlan>('/api/labs/plan', { method: 'POST', body: JSON.stringify(spec) }),
   deploy: (spec: LabSpec) => http<Deployment>('/api/labs/deploy', { method: 'POST', body: JSON.stringify(spec) }),
   fix: (conn: string, fix: PlanFix) => http<{ ok: boolean }>('/api/labs/fix', { method: 'POST', body: JSON.stringify({ conn, fix }) }),
+  deployments: () => http<Deployment[]>('/api/labs/deployments'),
   deployment: (id: string) => http<Deployment>(`/api/labs/deployments/${enc(id)}`),
   cancel: (id: string) => http<Deployment>(`/api/labs/deployments/${enc(id)}/cancel`, { method: 'POST' }),
   destroy: (id: string) => http<Deployment>(`/api/labs/deployments/${enc(id)}/destroy`, { method: 'POST' }),
@@ -59,7 +60,8 @@ export function usePlan() {
 }
 
 export function useDeploy() {
-  return useMutation({ mutationFn: buildApi.deploy });
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: buildApi.deploy, onSuccess: () => qc.invalidateQueries({ queryKey: ['deployments'] }) });
 }
 
 export function useFix() {
@@ -92,10 +94,18 @@ export function useDeployment(id?: string) {
   });
 }
 
+/** Every deployment the server remembers (newest first), so any lab can be reopened and destroyed later. */
+export function useDeployments() {
+  return useQuery({ queryKey: ['deployments'], queryFn: buildApi.deployments, refetchInterval: 15_000 });
+}
+
 export function useDeploymentAction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'cancel' | 'destroy' }) => (action === 'cancel' ? buildApi.cancel(id) : buildApi.destroy(id)),
-    onSuccess: (d) => qc.setQueryData(['deployment', d.id], d),
+    onSuccess: (d) => {
+      qc.setQueryData(['deployment', d.id], d);
+      void qc.invalidateQueries({ queryKey: ['deployments'] });
+    },
   });
 }

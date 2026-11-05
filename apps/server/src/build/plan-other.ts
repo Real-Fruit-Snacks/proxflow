@@ -24,7 +24,7 @@ export function planEsxi(pc: PlanCtx, m: EsxiSpec, vmid: number, mac: string): P
   const dns = splitList(m.net.dns || spec.defaults.dns);
   const ks = uploadIsoStep(pc, m, vmid, 'ks', () =>
     esxiKickstartIso(
-      { hostname: m.name, rootPassword: effectivePassword(spec, m), ip, cidr, gateway: m.net.gateway, dns: dns.length ? dns : m.net.gateway ? [m.net.gateway] : [], vlan: m.net.vlan },
+      { hostname: m.name, rootPassword: effectivePassword(spec, m), ip, cidr, gateway: m.net.gateway, dns: dns.length ? dns : m.net.gateway ? [m.net.gateway] : [] },
       { kind: 'esxi', hostname: m.name, ip, vmid },
     ),
   );

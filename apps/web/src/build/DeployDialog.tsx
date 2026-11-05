@@ -16,9 +16,14 @@ export function DeployDialog({ open, spec, onClose, onDeployed }: Props) {
   const deploy = useDeploy();
   const fix = useFix();
 
-  // Plan as soon as the dialog opens (and again after a fix).
+  // Plan as soon as the dialog opens (and again after a fix). A rejected deploy carries its own plan,
+  // which would otherwise keep hiding every fresher one.
+  const replan = () => {
+    deploy.reset();
+    plan.mutate(spec);
+  };
   useEffect(() => {
-    if (open) plan.mutate(spec);
+    if (open) replan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -98,7 +103,7 @@ export function DeployDialog({ open, spec, onClose, onDeployed }: Props) {
                           icon={fix.isPending ? LoaderCircle : Wrench}
                           disabled={fix.isPending}
                           onClick={() =>
-                            fix.mutate({ conn: spec.target.conn, fix: i.fix! }, { onSuccess: () => plan.mutate(spec), onError: (e) => toast.error(e.message) })
+                            fix.mutate({ conn: spec.target.conn, fix: i.fix! }, { onSuccess: replan, onError: (e) => toast.error(e.message) })
                           }
                         >
                           {i.fix.label}

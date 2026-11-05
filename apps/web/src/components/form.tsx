@@ -70,10 +70,11 @@ export function Select<T extends string>({ value, onChange, options, placeholder
       {o.label}
     </option>
   );
+  // An option may itself have the empty value (e.g. "Lab default"); then there's no placeholder to show.
   const known = options.some((o) => o.value === value);
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as T)} className={clsx(INPUT, 'pr-6', !value && 'text-zinc-500')}>
-      {(!value || !known) && <option value={value}>{value && !known ? `${value} (not found)` : (placeholder ?? 'Choose…')}</option>}
+    <select value={value} onChange={(e) => onChange(e.target.value as T)} className={clsx(INPUT, 'pr-6', !value && !known && 'text-zinc-500')}>
+      {!known && <option value={value}>{value && !known ? `${value} (not found)` : (placeholder ?? 'Choose…')}</option>}
       {groups.length > 1
         ? groups.map((g) => (
             <optgroup key={g} label={g}>

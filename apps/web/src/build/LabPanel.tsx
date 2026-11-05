@@ -2,10 +2,11 @@
 import { Copy, Eye, EyeOff, LoaderCircle, RefreshCw, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Connection, LabIssue, TargetInventory } from '@proxflow/shared';
+import type { Connection, Deployment, LabIssue, TargetInventory } from '@proxflow/shared';
 import { ActionButton } from '../components/ConfirmButton';
 import { Field, PanelSection, Select, TextArea, TextInput } from '../components/form';
-import { useFix } from './api';
+import { copyText } from '../lib/clipboard';
+import { useDeployments, useFix } from './api';
 import { generatePassword, type LabDesign } from './design';
 import { Note } from './MachinePanel';
 
@@ -124,7 +125,7 @@ export function LabPanel({ design, setDesign, connections, inv, invLoading, invE
             <button
               type="button"
               className="inline-flex items-center gap-1 text-sky-300 hover:underline"
-              onClick={() => navigator.clipboard?.writeText(design.defaults.password).then(() => toast.success('Password copied'))}
+              onClick={() => void copyText(design.defaults.password, 'Password copied')}
             >
               <Copy className="h-3 w-3" /> Copy
             </button>
@@ -163,7 +164,52 @@ export function LabPanel({ design, setDesign, connections, inv, invLoading, invE
         )}
         <p className="text-[10px] leading-relaxed text-zinc-600">Everything is built from what's already on Proxmox storage — no internet needed.</p>
       </PanelSection>
+
+      <LabHistory active={design.activeDeployment} onOpen={(id) => setDesign((d) => ({ ...d, activeDeployment: id }))} />
     </div>
+  );
+}
+
+const HISTORY_TONE: Record<Deployment['status'], string> = {
+  running: 'text-sky-300',
+  destroying: 'text-sky-300',
+  succeeded: 'text-emerald-300',
+  warning: 'text-amber-300',
+  failed: 'text-rose-300',
+  cancelled: 'text-zinc-400',
+  interrupted: 'text-amber-300',
+  destroyed: 'text-zinc-600',
+};
+
+/** Earlier deployments, so a lab can still be opened and destroyed after a restart or after dismissing it. */
+function LabHistory({ active, onOpen }: { active?: string; onOpen: (id: string) => void }) {
+  const q = useDeployments();
+  const list = (q.data ?? []).slice(0, 8);
+  if (!list.length) return null;
+  return (
+    <PanelSection title="Lab history">
+      <ul className="space-y-1">
+        {list.map((d) => (
+          <li key={d.id}>
+            <button
+              type="button"
+              onClick={() => onOpen(d.id)}
+              className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs ${d.id === active ? 'border-sky-500/40 bg-sky-500/10' : 'border-zinc-800 hover:bg-zinc-900'}`}
+            >
+              <span className="min-w-0 flex-1 truncate text-zinc-200">
+                {d.labName}
+                <span className="text-zinc-500">
+                  {' '}
+                  · {d.machines.length} · {new Date(d.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
+              </span>
+              <span className={`shrink-0 text-[11px] ${HISTORY_TONE[d.status]}`}>{d.status}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[10px] text-zinc-600">Open one to see its log, or to destroy what it created.</p>
+    </PanelSection>
   );
 }
 

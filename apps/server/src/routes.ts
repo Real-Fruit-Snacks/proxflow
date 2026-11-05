@@ -21,6 +21,15 @@ function guestParams(req: Request): { conn: string; node: string; type: GuestTyp
   return { conn, node, type, vmid };
 }
 
+const SNAPSHOT_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,39}$/;
+const snapshotName = (raw: unknown) => {
+  const name = String(raw ?? '').trim();
+  if (!SNAPSHOT_NAME.test(name)) {
+    throw new HttpError(400, 'snapshot name must start with a letter and contain only letters, digits, "_" or "-"');
+  }
+  return name;
+};
+
 const TOKEN_ID = /^[^\s!@]+@[^\s!@]+![^\s!@]+$/;
 const TLS_MODES = new Set(['system', 'pinned', 'insecure']);
 
@@ -134,17 +143,14 @@ export function createRoutes(manager: ConnectionManager) {
   r.post('/guests/:conn/:node/:type/:vmid/snapshots', async (req, res) => {
     const { conn, node, type, vmid } = guestParams(req);
     const body = (req.body ?? {}) as { name?: string; description?: string; vmstate?: boolean };
-    const name = String(body.name ?? '').trim();
-    if (!/^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(name)) {
-      throw new HttpError(400, 'snapshot name must start with a letter and contain only letters, digits, "_" or "-"');
-    }
+    const name = snapshotName(body.name);
     const upid = await operations.createSnapshot(manager.client(conn), node, type, vmid, name, body.description, body.vmstate);
     res.json({ upid });
   });
 
   r.delete('/guests/:conn/:node/:type/:vmid/snapshots/:name', async (req, res) => {
     const { conn, node, type, vmid } = guestParams(req);
-    const upid = await operations.deleteSnapshot(manager.client(conn), node, type, vmid, param(req, 'name'));
+    const upid = await operations.deleteSnapshot(manager.client(conn), node, type, vmid, snapshotName(param(req, 'name')));
     res.json({ upid });
   });
 

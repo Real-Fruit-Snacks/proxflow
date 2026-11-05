@@ -15,7 +15,7 @@ import type { Params } from '../pve/client.js';
 import { parseKv, parseSizeGiB } from '../pve/parse.js';
 import type { RawGuestConfig } from '../pve/types.js';
 import type { BoxCache } from './box-cache.js';
-import { waitForTask, type StepContext, type StepDef } from './steps.js';
+import { pollUntil, waitForTask, type StepContext, type StepDef } from './steps.js';
 
 export type PlanCtx = {
   spec: LabSpec;
@@ -116,7 +116,7 @@ export function uploadIsoStep(pc: PlanCtx, m: MachineSpec, vmid: number, kind: '
 export function ensureBoxTemplate(pc: PlanCtx, backup: InventoryBackup): { stepId?: string; vmid: number; node: string } {
   const known = pc.boxes.get(backup.volid);
   if (known) return known;
-  const cached = pc.boxCache.lookup(pc.conn, backup.volid, pc.inv.vmTemplates);
+  const cached = pc.boxCache.lookup(pc.conn, backup.volid, pc.node, pc.inv.vmTemplates);
   if (cached) {
     const ref = { vmid: cached.vmid, node: cached.node };
     pc.boxes.set(backup.volid, ref);
@@ -137,13 +137,42 @@ export function ensureBoxTemplate(pc: PlanCtx, backup: InventoryBackup): { stepI
         type === 'qemu'
           ? { vmid, archive: backup.volid, storage: pc.T.diskStorage, unique: 1 }
           : { vmid, ostemplate: backup.volid, restore: 1, storage: pc.T.diskStorage, unique: 1 };
-      await waitForTask(ctx, await ctx.client.createGuest(pc.node, type, params), { what: 'Restore', timeoutMs: 180 * 60_000 });
-      const cfg = await ctx.client.guestConfig(pc.node, type, vmid);
-      if (String(cfg.template ?? '') !== '1') {
-        await waitForTask(ctx, await ctx.client.convertToTemplate(pc.node, type, vmid), { what: 'Convert to template' });
+      const upid = await ctx.client.createGuest(pc.node, type, params);
+      try {
+        await waitForTask(ctx, upid, { what: 'Restore', timeoutMs: 180 * 60_000 });
+        const cfg = await ctx.client.guestConfig(pc.node, type, vmid);
+        if (String(cfg.template ?? '') !== '1') {
+          const res = await ctx.client.convertToTemplate(pc.node, type, vmid);
+          await waitForTask(ctx, res, { what: 'Convert to template' });
+          // Containers: Proxmox answers without a task and converts in the background — wait for it to finish.
+          if (typeof res !== 'string')
+            await pollUntil(
+              ctx,
+              async () => {
+                const c = await ctx.client.guestConfig(pc.node, type, vmid).catch(() => undefined);
+                return c && String(c.template ?? '') === '1' && !c.lock ? true : undefined;
+              },
+              { intervalMs: 2000, timeoutMs: 30 * 60_000, what: `template ${vmid} to finish converting` },
+            );
+        }
+        await ctx.client.updateConfig(pc.node, type, vmid, { description: `Box restored by ProxFlow from ${backup.volid}`, tags: 'proxflow;pf-box' });
+      } catch (e) {
+        // Don't leave a multi-GB half-made box behind that nothing tracks. Proxmox removes a failed restore
+        // itself; one that is still running (cancelled, timed out) is locked, so say where it is instead.
+        const left = await ctx.client.guestConfig(pc.node, type, vmid).catch(() => undefined);
+        let note = '';
+        if (left && !left.lock) {
+          note = await ctx.client
+            .destroyGuest(pc.node, type, vmid)
+            .then((u) => waitForTask({ ...ctx, sleep: (ms) => new Promise((r) => setTimeout(r, ctx.mock ? 150 : ms)) }, u, { what: 'Delete' }))
+            .then(() => ` (removed the unfinished box ${vmid})`, () => ` (box ${vmid} is left over — delete it in Proxmox)`);
+        } else if (left) {
+          note = ` (the restore may still be running as ${vmid} — delete that VM in Proxmox once it finishes)`;
+        }
+        if (e instanceof Error && note) e.message += note;
+        throw e;
       }
-      await ctx.client.updateConfig(pc.node, type, vmid, { description: `Box restored by ProxFlow from ${backup.volid}`, tags: 'proxflow;pf-box' });
-      pc.boxCache.remember(pc.conn, backup.volid, vmid, pc.node);
+      pc.boxCache.remember(pc.conn, backup.volid, vmid, pc.node, pc.inv.storages.some((s) => s.name === pc.T.diskStorage && s.shared));
       return { detail: `Kept as template ${vmid} — later labs clone it directly` };
     },
   });
@@ -180,6 +209,8 @@ export function cloneStep(
         .clone(src.node, type, src.vmid, {
           newid: vmid,
           ...(type === 'qemu' ? { name: m.name } : { hostname: m.name }),
+          // Marks the clone as this deployment's from the start, so Destroy can tell it apart from a reused VMID.
+          description: pc.description,
           full: true,
           storage: pc.T.diskStorage,
           ...(crossNode ? { target: pc.node } : {}),

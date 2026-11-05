@@ -166,7 +166,10 @@ function GuestPanel({ guest, topo, onSelect }: { guest: GuestData; topo: Topolog
   const running = guest.status === 'running';
   const stopped = guest.status === 'stopped';
   const paused = guest.status === 'paused' || guest.status === 'suspended';
-  const busy = act.isPending;
+  const pendingAction = act.isPending ? act.variables?.action : undefined;
+  const busy = pendingAction !== undefined;
+  // A guest that ignores Shutdown (no ACPI, a stuck service) must still be stoppable without waiting it out.
+  const stopBusy = busy && pendingAction !== 'shutdown' && pendingAction !== 'reboot';
   const run = (action: GuestAction) => act.mutate({ guest, action, vmid: guest.vmid });
 
   return (
@@ -195,7 +198,7 @@ function GuestPanel({ guest, topo, onSelect }: { guest: GuestData; topo: Topolog
               </ConfirmButton>
             )}
             {running && (
-              <ConfirmButton icon={Square} tone="amber" onConfirm={() => run('stop')} disabled={busy} confirmLabel="Force stop?">
+              <ConfirmButton icon={Square} tone="amber" onConfirm={() => run('stop')} disabled={stopBusy} confirmLabel="Force stop?">
                 Stop
               </ConfirmButton>
             )}

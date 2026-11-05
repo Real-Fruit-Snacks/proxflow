@@ -6,7 +6,7 @@
 // Output: release/proxflow-<target>.(zip|tar.gz) (holding a proxflow-<version>-<target> folder) and release/SHA256SUMS.txt
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -33,7 +33,17 @@ for (const t of targets) if (!TARGETS[t]) throw new Error(`Unknown target "${t}"
 
 const step = (msg) => console.log(`\n▸ ${msg}`);
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
-const mtime = process.env.SOURCE_DATE_EPOCH ? Number(process.env.SOURCE_DATE_EPOCH) : Math.floor(Date.now() / 1000);
+// File times inside the packages: SOURCE_DATE_EPOCH, else the last commit, so the same commit builds the same bytes.
+const commitTime = () => {
+  try {
+    return Number(execSync('git log -1 --format=%ct', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim());
+  } catch {
+    return NaN;
+  }
+};
+const mtime = Number(process.env.SOURCE_DATE_EPOCH) || commitTime() || Math.floor(Date.now() / 1000);
+// Zip entries hold local wall-clock time; shift it so they read as UTC whatever the build machine's time zone.
+const zipTime = new Date(mtime * 1000 + new Date(mtime * 1000).getTimezoneOffset() * 60_000);
 
 function walk(dir) {
   return readdirSync(dir).flatMap((f) => {
@@ -121,7 +131,8 @@ async function download(name) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
-  writeFileSync(file, buf);
+  writeFileSync(`${file}.tmp`, buf); // a download cut short never lands in the cache
+  renameSync(`${file}.tmp`, file);
   return buf;
 }
 
@@ -131,8 +142,10 @@ async function nodeRuntime(target) {
   const want = new RegExp(`^([0-9a-f]{64})\\s+${t.archive.replace(/\./g, '\\.')}$`, 'm').exec(sums)?.[1];
   const archive = await download(t.archive);
   if (!want || sha256(archive) !== want) {
+    // Either file could be the bad one (a proxy's error page, a cut-off download): drop both.
     rmSync(join(CACHE, t.archive), { force: true });
-    throw new Error(`Checksum mismatch for ${t.archive} — deleted the cached copy, run again`);
+    rmSync(join(CACHE, 'SHASUMS256.txt'), { force: true });
+    throw new Error(`Checksum mismatch for ${t.archive} — deleted the cached copies, run again`);
   }
   const base = t.archive.replace(/\.(zip|tar\.gz)$/, '');
   const names = [`${base}/${t.bin}`, `${base}/LICENSE`];
@@ -166,7 +179,7 @@ for (const target of targets) {
   const name = `proxflow-${target}.${TARGETS[target].format}`;
   const buf =
     TARGETS[target].format === 'zip'
-      ? Buffer.from(zipSync(Object.fromEntries(entries.map((e) => [`${top}/${e.path}`, [new Uint8Array(e.data), { level: 9, mtime: mtime * 1000 }]]))))
+      ? Buffer.from(zipSync(Object.fromEntries(entries.map((e) => [`${top}/${e.path}`, [new Uint8Array(e.data), { level: 9, mtime: zipTime }]]))))
       : createTarGz(entries.map((e) => ({ ...e, path: `${top}/${e.path}` })), { mtime });
   writeFileSync(join(OUT, name), buf);
   artifacts.push({ name, buf });

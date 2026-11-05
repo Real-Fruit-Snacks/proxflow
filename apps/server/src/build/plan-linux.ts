@@ -44,10 +44,12 @@ export function planLinuxVm(pc: PlanCtx, m: LinuxVmSpec, vmid: number, mac: stri
   const password = effectivePassword(spec, m) || undefined;
   const dns = dcIp ? [dcIp] : splitList(m.net.dns || spec.defaults.dns).length ? splitList(m.net.dns || spec.defaults.dns) : m.net.gateway ? [m.net.gateway] : [];
 
+  const instanceId = `pf-${pc.tag}-${vmid}`;
+
   // 1. setup seed (cloud-init NoCloud)
   const seed = uploadIsoStep(pc, m, vmid, 'seed', () =>
     linuxSeedIso({
-      instanceId: `pf-${pc.tag}-${vmid}`,
+      instanceId,
       hostname: m.name,
       fqdn: domain ? `${m.name}.${domain}` : undefined,
       username: user,
@@ -184,7 +186,7 @@ export function planLinuxVm(pc: PlanCtx, m: LinuxVmSpec, vmid: number, mac: stri
     title: domain ? `Boot and join ${domain}` : 'Boot and apply cloud-init',
     group: 'wait',
     deps: [start],
-    run: (ctx) => waitLinuxReady(ctx, { vmid, mac, staticIp, machineId: m.id, dcReadyStep: dc ? `${dc.id}:ready` : undefined, longWait: Boolean(domain) }),
+    run: (ctx) => waitLinuxReady(ctx, { vmid, mac, staticIp, machineId: m.id, instanceId, dcReadyStep: dc ? `${dc.id}:ready` : undefined, longWait: Boolean(domain) }),
   });
   // The seed slot is decided at run time (a clone may already use ide2), so read it back from shared state.
   ejectStep(pc, m, vmid, seed.volid, (ctx) => ctx.shared.get(`${m.id}:seedSlot`) as string | undefined, [ready]);
@@ -206,7 +208,7 @@ export function planLinuxVm(pc: PlanCtx, m: LinuxVmSpec, vmid: number, mac: stri
 
 export async function waitLinuxReady(
   ctx: StepContext,
-  o: { vmid: number; mac: string; staticIp?: string; machineId: string; dcReadyStep?: string; longWait: boolean },
+  o: { vmid: number; mac: string; staticIp?: string; machineId: string; instanceId: string; dcReadyStep?: string; longWait: boolean },
 ) {
   const node = ctx.node;
   const started = Date.now();
@@ -237,8 +239,9 @@ export async function waitLinuxReady(
               ctx.setMachine(o.machineId, { ip });
             }
             const f = await agentCall(() => ctx.client.agentFileRead(node, o.vmid, STATUS_FILE));
-            if (f.state === 'ok') {
-              const s = parseStatus(f.value.content);
+            const s = f.state === 'ok' ? parseStatus(f.value.content) : undefined;
+            // A status without this deployment's instance id was left in the box by an earlier lab.
+            if (s && s.instance === o.instanceId) {
               if (s.stage && s.stage !== lastStage) {
                 lastStage = s.stage;
                 ctx.detail(s.detail ?? s.stage);
@@ -248,10 +251,15 @@ export async function waitLinuxReady(
               if (s.stage === 'failed') throw new Error(s.detail ?? 'Setup failed inside the VM');
               return undefined;
             }
-            if (f.state === 'unsupported' || f.state === 'denied')
-              return { warning: `Running${ip ? ` at ${ip}` : ''}, but ProxFlow can't read its setup status (${f.message}).` };
+            if (f.state === 'denied') return { warning: `Running${ip ? ` at ${ip}` : ''}, but ProxFlow can't read its setup status (${f.message}).` };
+            // "unsupported": RHEL-family agents refuse file reads until our finish script lifts that, so keep waiting.
             if (Date.now() - agentSince > statusGrace)
-              return { warning: `Running${ip ? ` at ${ip}` : ''}, but cloud-init never reported back — the image may not have cloud-init, so it kept the hostname, users and network it was built with.` };
+              return {
+                warning:
+                  f.state === 'unsupported'
+                    ? `Running${ip ? ` at ${ip}` : ''}, but its guest agent doesn't allow reading the setup status (${f.message}).`
+                    : `Running${ip ? ` at ${ip}` : ''}, but cloud-init never reported back — the image may not have cloud-init, so it kept the hostname, users and network it was built with.`,
+              };
             ctx.detail(`Guest agent up${ip ? ` (${ip})` : ''} — waiting for cloud-init`);
             return undefined;
           }

@@ -123,6 +123,11 @@ export async function getInventory(
     if (n.data.kind !== 'guest') continue;
     for (const nic of n.data.nets) if (nic.ip && nic.ip !== 'dhcp' && nic.ip !== 'manual') usedIps.add(nic.ip.split('/')[0]!);
   }
+  // The node's own address on each bridge, and the bridge's gateway.
+  for (const i of network) {
+    if (i.type !== 'bridge' && i.type !== 'OVSBridge') continue;
+    for (const a of [i.cidr?.split('/')[0], i.address, i.gateway]) if (a) usedIps.add(a);
+  }
 
   const inv: TargetInventory = {
     conn: conn.id,

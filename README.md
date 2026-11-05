@@ -8,7 +8,7 @@ Proxmox map and lab builder that works offline
 </picture>
 
 ```powershell
-irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .
+[Net.ServicePointManager]::SecurityProtocol = 'Tls12'; $ProgressPreference = 'SilentlyContinue'; irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .
 ```
 
 Or download `proxflow-windows-x64.zip` from [Releases](https://github.com/Real-Fruit-Snacks/proxflow/releases/latest), unblock it (Properties, Unblock) and extract it. Double-click `ProxFlow.cmd`; your browser opens ProxFlow. Node.js is inside the zip, so there is nothing to install and no admin rights are needed. `ProxFlow-demo.cmd` starts it against a simulated Proxmox.
@@ -54,7 +54,7 @@ Options for `ProxFlow.cmd`:
 | `--no-open` | Doesn't open a browser |
 | `PVE_URL` | Adds a host from the environment, with `PVE_TOKEN_ID` and `PVE_TOKEN_SECRET`; `PVE_FINGERPRINT` pins its certificate |
 
-Proxmox roles for the API token: `PVEAuditor` on `/` for the map; `PVEVMAdmin` on `/` plus `PVEDatastoreUser` on your storages to build labs.
+Proxmox roles for the API token: `PVEAuditor` on `/` for the map. To build labs, add `PVEVMAdmin` on `/`, `PVEDatastoreAdmin` on `/storage` and, on Proxmox 8 or later, `PVESDNUser` on `/sdn/zones/localnetwork`.
 
 Building from source and releasing: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 

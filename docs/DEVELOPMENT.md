@@ -84,7 +84,9 @@ certificate on every connection; “connect without verifying” exists but is l
 optionally `PVE_FINGERPRINT` — see `.env.example`. Env-defined connections apply for that run only and aren't saved.
 
 **Suggested roles:** `PVEAuditor` on `/` for a read-only map; `PVEVMUser` or `PVEVMAdmin` to power-manage and
-snapshot; **`PVEVMAdmin` on `/`** (plus `PVEDatastoreUser` on your storages) to build labs.
+snapshot. To build labs add **`PVEVMAdmin` on `/`**, `PVEDatastoreAdmin` on `/storage` (setup CDs need
+`Datastore.AllocateTemplate`; restoring a box needs `Datastore.AllocateSpace` on its storage) and, on Proxmox 8+,
+`PVESDNUser` on `/sdn/zones/localnetwork` to attach machines to bridges.
 
 ## Building labs (Build mode)
 
@@ -115,7 +117,7 @@ first — permissions, storage, IPs, names, passwords — and only creates VMs w
 
 `pnpm smoke:build` deploys a 10-machine offline lab against the mock (AD forest, Windows box joined via the agent,
 Rocky box joined via realmd, a no-agent box confirmed over SSH, cross-node template clone, containers, nested ESXi),
-then checks box reuse, failure handling and Destroy.
+then checks box reuse, failure handling and Destroy (including that it leaves a reused VMID alone).
 
 ## API (apps/server)
 
@@ -140,7 +142,7 @@ then checks box reuse, failure handling and Destroy.
 Graph IDs are namespaced by connection: `mock/node:pve1`, `mock/guest:101`, `mock/bridge:pve1/vmbr0`,
 `mock/storage:nas-nfs` (shared) / `mock/storage:pve1/local-lvm` (local).
 
-`pnpm smoke` runs 37 end-to-end checks of the connection flow (auth, TLS pinning, error diagnosis, multi-connection)
+`pnpm smoke` runs 40 end-to-end checks of the connection flow (auth, TLS pinning, error diagnosis, multi-connection, request safety)
 against the running `pnpm dev` stack.
 
 ## Layout of the repo

@@ -206,7 +206,12 @@ export class PveClient {
       throw this.networkError(err);
     }
 
-    const text = await res.text();
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (err) {
+      throw this.networkError(err);
+    }
     let json: { data?: unknown; message?: string; errors?: unknown } | null = null;
     try {
       json = text ? JSON.parse(text) : null;
@@ -430,4 +435,8 @@ export class PveClient {
   }
 }
 
-const enc = encodeURIComponent;
+/** Encodes one path segment. "." and ".." would be folded away by URL parsing and retarget the request. */
+const enc = (segment: string) => {
+  if (segment === '' || segment === '.' || segment === '..') throw new PveError(`invalid path segment '${segment}'`, 400);
+  return encodeURIComponent(segment);
+};

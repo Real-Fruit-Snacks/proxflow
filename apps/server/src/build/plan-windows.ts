@@ -37,6 +37,7 @@ export function planWindows(pc: PlanCtx, m: WindowsSpec, vmid: number, mac: stri
   const virtio = isoPath ? pc.inv.virtioIso : undefined;
 
   const setup: WindowsSetupConfig = {
+    instance: `pf-${pc.tag}-${vmid}`,
     computerName: m.name.toUpperCase(),
     adminPassword: pw,
     mac: toWindowsMac(mac),
@@ -159,6 +160,7 @@ export function planWindows(pc: PlanCtx, m: WindowsSpec, vmid: number, mac: stri
         port,
         agentExpected,
         boxScript: isoPath ? undefined : windowsSetupScript(setup),
+        instance: setup.instance,
         dcReadyStep: dc ? `${dc.id}:ready` : undefined,
         role,
       }),
@@ -187,7 +189,7 @@ export function planWindows(pc: PlanCtx, m: WindowsSpec, vmid: number, mac: stri
 
 export async function waitWindowsReady(
   ctx: StepContext,
-  o: { vmid: number; machineId: string; staticIp?: string; port: number; agentExpected: boolean; boxScript?: string; dcReadyStep?: string; role: string },
+  o: { vmid: number; machineId: string; staticIp?: string; port: number; agentExpected: boolean; boxScript?: string; instance: string; dcReadyStep?: string; role: string },
 ) {
   const node = ctx.node;
   const started = Date.now();
@@ -224,6 +226,7 @@ export async function waitWindowsReady(
             const f = await agentCall(() => ctx.client.agentFileRead(node, o.vmid, STATUS_FILE));
             if (f.state === 'ok') {
               const s = parseStatus(f.value.content);
+              if (s.instance !== o.instance) return undefined; // left over in the box from an earlier lab
               if (s.stage && s.stage !== lastStage) {
                 lastStage = s.stage;
                 ctx.detail(s.detail ?? s.stage);

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { Deployment, DeploymentMachine, StepStatus } from '@proxflow/shared';
 import { ConfirmButton } from '../components/ConfirmButton';
+import { copyText } from '../lib/clipboard';
 import { useDeploymentAction } from './api';
 
 const MACHINE: Record<DeploymentMachine['status'], { icon: typeof CheckCircle2; cls: string; label: string }> = {
@@ -74,12 +75,12 @@ export function DeploymentPanel({ dep, onShowOnMap, onDismiss }: Props) {
         </div>
         <div className="ml-auto flex items-center gap-1.5">
           {dep.status === 'running' && (
-            <ConfirmButton size="sm" icon={Square} tone="amber" confirmLabel="Cancel deployment?" onConfirm={() => act('cancel')}>
+            <ConfirmButton size="sm" icon={action.isPending ? LoaderCircle : Square} tone="amber" confirmLabel="Cancel deployment?" disabled={action.isPending} onConfirm={() => act('cancel')}>
               Cancel
             </ConfirmButton>
           )}
           {finished && dep.status !== 'destroyed' && dep.created.length > 0 && (
-            <ConfirmButton size="sm" icon={Trash2} confirmLabel={`Delete ${dep.created.length} VM(s)?`} onConfirm={() => act('destroy')}>
+            <ConfirmButton size="sm" icon={action.isPending ? LoaderCircle : Trash2} confirmLabel={`Delete ${dep.created.length} VM(s)?`} disabled={action.isPending} onConfirm={() => act('destroy')}>
               Destroy lab
             </ConfirmButton>
           )}
@@ -138,7 +139,7 @@ export function DeploymentPanel({ dep, onShowOnMap, onDismiss }: Props) {
                         <button
                           type="button"
                           title={`Copy: ${access}`}
-                          onClick={() => navigator.clipboard?.writeText(access.split(' — ')[0]!).then(() => toast.success(`Copied: ${access.split(' — ')[0]}`))}
+                          onClick={() => void copyText(access.split(' — ')[0]!, `Copied: ${access.split(' — ')[0]}`)}
                           className="hidden max-w-60 shrink-0 items-center gap-1 truncate rounded-md border border-zinc-800 px-2 py-0.5 font-mono text-[10px] text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 lg:inline-flex"
                         >
                           <Copy className="h-3 w-3 shrink-0" /> <span className="truncate">{access}</span>

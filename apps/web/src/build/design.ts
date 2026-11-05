@@ -66,14 +66,29 @@ export function loadDesign(): LabDesign {
 
 export const saveDesign = (d: LabDesign) => localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
 
+const trimmed = <T extends string | undefined>(v: T): T => (typeof v === 'string' ? (v.trim() as T) : v);
+
+/**
+ * What the server gets. Typed values are trimmed here: validation trims before it checks, but the server
+ * builds Proxmox settings from the raw text, so "10.0.0.5/24 " would pass review and fail mid-deploy.
+ */
 export function toSpec(d: LabDesign): LabSpec {
   const t = d.target;
   return {
-    name: d.name,
+    name: d.name.trim(),
     target: { conn: t.conn ?? '', node: t.node ?? '', diskStorage: t.diskStorage ?? '', isoStorage: t.isoStorage ?? '', importStorage: t.importStorage ?? '', bridge: t.bridge ?? '' },
-    defaults: d.defaults,
+    defaults: { ...d.defaults, username: d.defaults.username.trim(), sshKey: d.defaults.sshKey.trim(), dns: d.defaults.dns.trim() },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    machines: d.machines.map(({ position, ...m }) => m as MachineSpec),
+    machines: d.machines.map(({ position, ...m }) => {
+      const out = {
+        ...m,
+        name: m.name.trim(),
+        net: { ...m.net, cidr: trimmed(m.net.cidr), gateway: trimmed(m.net.gateway), dns: trimmed(m.net.dns) },
+        ...(m.credentials ? { credentials: { ...m.credentials, username: trimmed(m.credentials.username), sshKey: trimmed(m.credentials.sshKey) } } : {}),
+      } as MachineSpec;
+      if (out.kind === 'windows' && out.domain) out.domain = { fqdn: out.domain.fqdn.trim(), netbios: out.domain.netbios.trim() };
+      return out;
+    }),
   };
 }
 
@@ -241,7 +256,8 @@ export const PRESETS: Preset[] = [
 
 /** Builds a preset machine by machine so names, IPs and the domain link come out right. */
 export function applyPreset(design: LabDesign, preset: Preset, inv: TargetInventory | undefined): LabDesign {
-  let d: LabDesign = { ...design, name: preset.name, machines: [], activeDeployment: undefined };
+  // (activeDeployment stays: a running lab must keep its Cancel / Destroy panel.)
+  let d: LabDesign = { ...design, name: preset.name, machines: [] };
   for (const k of preset.kinds) {
     const m = newMachine(k.kind, d, inv, { x: k.x, y: k.y });
     if (m.kind === 'linux-vm' && preset.id === 'ad') {

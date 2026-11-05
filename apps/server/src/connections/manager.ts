@@ -34,7 +34,8 @@ const redact = (auth: AuthInput): AuthPublic =>
 /** Short, user-facing reason a connection is failing on the map. */
 export function friendlyError(err: unknown): string {
   if (err instanceof PveError) {
-    if (err.status === 401 || err.status === 403) return 'Proxmox rejected the credentials — open Connections to fix them.';
+    if (err.status === 401) return 'Proxmox rejected the credentials — open Connections to fix them.';
+    if (err.status === 403) return 'Proxmox denied permission — the user or token is missing a privilege. Open Connections and test it to see which.';
     if (err.isNetwork) {
       const code = err.netCause?.code ?? '';
       const detail = err.netCause?.message ?? err.message;
@@ -53,6 +54,8 @@ export function friendlyError(err: unknown): string {
 /** Owns one PveClient + topology cache per saved connection. */
 export class ConnectionManager {
   private entries = new Map<string, Entry>();
+  /** Connections from --seed-mock / --demo / PVE_URL: this run only, never written to connections.json. */
+  private seeded = new Set<string>();
 
   constructor(
     private readonly store: ConnectionStore,
@@ -145,7 +148,7 @@ export class ConnectionManager {
     const e = this.entry(id);
     const conn = this.merge(e.conn, input);
     const entry = this.build(conn);
-    this.store.upsert(conn);
+    if (!this.seeded.has(id)) this.store.upsert(conn);
     this.entries.set(id, entry);
     return this.toPublic(entry);
   }
@@ -153,6 +156,7 @@ export class ConnectionManager {
   remove(id: string) {
     this.entry(id);
     this.entries.delete(id);
+    if (this.seeded.delete(id)) return;
     this.store.remove(id);
   }
 
@@ -170,8 +174,15 @@ export class ConnectionManager {
    */
   seed(seed: { id: string; name: string; url: string; auth: AuthInput; tls: TlsConfig }) {
     const url = normalizePveUrl(seed.url);
-    if (this.entries.has(seed.id) || [...this.entries.values()].some((e) => e.conn.url === url)) return;
+    // An entry saved under the seed's own id came from an older version that persisted edits to seeds
+    // (with a stale demo port or an old PVE_PASSWORD); the seed is the source of truth, so replace it.
+    if (this.entries.has(seed.id)) {
+      this.entries.delete(seed.id);
+      this.store.remove(seed.id);
+    }
+    if ([...this.entries.values()].some((e) => e.conn.url === url)) return;
     this.add({ name: seed.name, url, auth: seed.auth, tls: seed.tls }, seed.id, false);
+    this.seeded.add(seed.id);
     console.log(`[server] using connection "${seed.name}" → ${url} (from ${seed.id === 'mock' ? '--seed-mock' : 'environment'}, not saved)`);
   }
 

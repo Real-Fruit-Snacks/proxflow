@@ -47,7 +47,15 @@ export function createBuildRoutes(manager: ConnectionManager, deployments: Deplo
     if (!conn) throw new HttpError(400, 'Choose a connection first');
     const client = manager.client(conn);
     const topo = await manager.clusterTopology(conn).catch(() => undefined);
-    return getInventory(client, { id: conn }, node || undefined, topo);
+    const bundle = await getInventory(client, { id: conn }, node || undefined, topo);
+    // Machines of labs that haven't been destroyed keep their addresses, even when Proxmox can't show them
+    // (ProxFlow sets IPs inside the guest, not in the VM config).
+    const labIps = deployments
+      .list()
+      .filter((d) => d.conn === conn && d.status !== 'destroyed')
+      .flatMap((d) => d.machines.map((m) => m.ip).filter((ip): ip is string => Boolean(ip)));
+    bundle.inv.usedIps = [...new Set([...bundle.inv.usedIps, ...labIps])];
+    return bundle;
   };
 
   r.get('/connections/:id/inventory', async (req, res) => {

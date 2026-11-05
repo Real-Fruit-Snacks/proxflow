@@ -14,6 +14,7 @@ mkdirSync(out, { recursive: true });
 export const NASTY = `P@ss'w"o<r>d&$x\`y;z`;
 
 const setup: WindowsSetupConfig = {
+  instance: 'pf-selftest-100',
   computerName: 'DC01',
   adminPassword: NASTY,
   mac: toWindowsMac('bc:24:11:aa:bb:cc'),
@@ -52,7 +53,7 @@ const userData = JSON.parse(files['user-data'].replace(/^#cloud-config\n/, ''));
 writeFileSync(join(out, 'proxflow-finish.sh'), userData.write_files[0].content);
 writeFileSync(join(out, 'seed.iso'), linuxSeedIso(seed));
 
-const esxi = { hostname: 'esxi01', rootPassword: 'Lab-Pass-9!', ip: '10.0.0.20', cidr: parseCidr('10.0.0.20/24')!, gateway: '10.0.0.1', dns: ['10.0.0.10'], vlan: 20 };
+const esxi = { hostname: 'esxi01', rootPassword: 'Lab-Pass-9!', ip: '10.0.0.20', cidr: parseCidr('10.0.0.20/24')!, gateway: '10.0.0.1', dns: ['10.0.0.10'] };
 writeFileSync(join(out, 'KS.CFG'), esxiKickstart(esxi));
 writeFileSync(join(out, 'ks.iso'), esxiKickstartIso(esxi, { kind: 'esxi' }));
 

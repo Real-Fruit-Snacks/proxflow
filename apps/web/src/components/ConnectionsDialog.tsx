@@ -125,7 +125,8 @@ export function ConnectionsDialog({ open, onClose, connections }: Props) {
     let r: ProbeResult | null = lastProbeIsCurrent ? probe : null;
     if (!r) r = await runTest();
     if (!r || !r.ok) return; // the result card explains why
-    const finalInput: ConnectionInput = { ...toInput({ ...form, url: r.url, tls: r.tls }), name: form.name.trim() || (r.cluster.standalone ? r.nodes[0]?.name : r.cluster.name) };
+    // "Save & connect" also switches a connection that was turned off back on.
+    const finalInput: ConnectionInput = { ...toInput({ ...form, url: r.url, tls: r.tls }), name: form.name.trim() || (r.cluster.standalone ? r.nodes[0]?.name : r.cluster.name), enabled: true };
     try {
       const saved = await save.mutateAsync({ id: current?.id, input: finalInput });
       toast.success(`${current ? 'Updated' : 'Connected to'} ${saved.name}`);
@@ -222,8 +223,8 @@ export function ConnectionsDialog({ open, onClose, connections }: Props) {
                     </Field>
                     <p className="text-[11px] leading-relaxed text-zinc-500 sm:col-span-2">
                       In Proxmox: <span className="text-zinc-400">Datacenter → Permissions → API Tokens → Add</span>. Untick <em>Privilege Separation</em> so the token inherits the user's
-                      permissions, or give the token its own role under <span className="text-zinc-400">Permissions → Add → API Token Permission</span> (PVEAuditor = read-only, PVEVMAdmin =
-                      manage VMs).
+                      permissions, or give the token its own role under <span className="text-zinc-400">Permissions → Add → API Token Permission</span> (PVEAuditor on / = the map; add
+                      PVEVMAdmin on / to manage VMs, and PVEDatastoreAdmin on /storage to build labs).
                     </p>
                   </div>
                 ) : (

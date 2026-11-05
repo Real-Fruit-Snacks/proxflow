@@ -144,26 +144,29 @@ export function useGuestAction() {
       return assertOk(await api.waitForTask(guest.conn, guest.node, upid));
     },
     onMutate: ({ guest, action }) => {
-      toast.loading(`${VERB[action]} ${guest.name}…`, { id: `guest-${guest.vmid}` });
+      toast.loading(`${VERB[action]} ${guest.name}…`, { id: `guest-${guest.conn}-${guest.vmid}` });
     },
     onSuccess: (_task, { guest, action }) => {
-      toast.success(`${guest.name}: ${action} complete`, { id: `guest-${guest.vmid}` });
+      toast.success(`${guest.name}: ${action} complete`, { id: `guest-${guest.conn}-${guest.vmid}` });
     },
     onError: (err, { guest, action }) => {
-      toast.error(`${guest.name}: ${action} failed — ${err.message}`, { id: `guest-${guest.vmid}` });
+      toast.error(`${guest.name}: ${action} failed — ${err.message}`, { id: `guest-${guest.conn}-${guest.vmid}` });
     },
     onSettled: () => qc.invalidateQueries({ queryKey: topologyKey }),
   });
 }
 
-/** VMIDs with an in-flight power action, so cards can show a spinner. */
-export function usePendingVmids(): Set<number> {
-  const vmids = useMutationState({
+/** Guests ("conn/vmid") with an in-flight power action, so cards can show a spinner. VMIDs repeat across clusters. */
+export function usePendingGuests(): Set<string> {
+  const keys = useMutationState({
     filters: { mutationKey: GUEST_ACTION_KEY, status: 'pending' },
-    select: (m) => (m.state.variables as GuestActionVars | undefined)?.vmid,
+    select: (m) => {
+      const v = m.state.variables as GuestActionVars | undefined;
+      return v ? `${v.guest.conn}/${v.vmid}` : undefined;
+    },
   });
-  const key = vmids.filter((v): v is number => typeof v === 'number').sort((a, b) => a - b).join(',');
-  return useMemo(() => new Set(key ? key.split(',').map(Number) : []), [key]);
+  const key = keys.filter((k): k is string => typeof k === 'string').sort().join(',');
+  return useMemo(() => new Set(key ? key.split(',') : []), [key]);
 }
 
 export function useSnapshots(guest: GuestRef) {
@@ -181,13 +184,13 @@ export function useSnapshotMutation() {
       return assertOk(await api.waitForTask(guest.conn, guest.node, upid));
     },
     onMutate: ({ guest, name, remove }) => {
-      toast.loading(`${remove ? 'Deleting' : 'Taking'} snapshot ${name} of ${guest.name}…`, { id: `snap-${guest.vmid}` });
+      toast.loading(`${remove ? 'Deleting' : 'Taking'} snapshot ${name} of ${guest.name}…`, { id: `snap-${guest.conn}-${guest.vmid}` });
     },
     onSuccess: (_t, { guest, name, remove }) => {
-      toast.success(`Snapshot ${name} ${remove ? 'deleted' : 'created'} on ${guest.name}`, { id: `snap-${guest.vmid}` });
+      toast.success(`Snapshot ${name} ${remove ? 'deleted' : 'created'} on ${guest.name}`, { id: `snap-${guest.conn}-${guest.vmid}` });
     },
     onError: (err, { guest }) => {
-      toast.error(`${guest.name}: snapshot failed — ${err.message}`, { id: `snap-${guest.vmid}` });
+      toast.error(`${guest.name}: snapshot failed — ${err.message}`, { id: `snap-${guest.conn}-${guest.vmid}` });
     },
     onSettled: (_t, _e, { guest }) => qc.invalidateQueries({ queryKey: ['snapshots', guest.conn, guest.node, guest.type, guest.vmid] }),
   });

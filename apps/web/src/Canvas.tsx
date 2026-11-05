@@ -11,7 +11,7 @@ import {
 } from '@xyflow/react';
 import { LoaderCircle, Plug, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { usePendingVmids, useTopology } from './api';
+import { usePendingGuests, useTopology } from './api';
 import type { CommonProps } from './components/AppChrome';
 import { Inspector } from './components/Inspector';
 import { TopBar } from './components/TopBar';
@@ -38,7 +38,7 @@ export function Canvas({ common, active, focus }: { common: CommonProps; active:
   const topoQ = useTopology(live && active);
   const topo = topoQ.data;
   const connections = common.connections;
-  const pendingVmids = usePendingVmids();
+  const pendingGuests = usePendingGuests();
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [edges, setEdges] = useEdgesState<FlowEdge>([]);
@@ -62,7 +62,8 @@ export function Canvas({ common, active, focus }: { common: CommonProps; active:
       const prevById = new Map(prev.map((n) => [n.id, n]));
       return laid.nodes.map((n) => {
         const p = prevById.get(n.id);
-        if (!p || reset) return n;
+        if (!p) return n;
+        if (reset) return p.selected ? ({ ...n, selected: true } as FlowNode) : n; // keep the inspector open
         return { ...n, position: p.position, selected: p.selected, measured: p.measured, dragging: p.dragging } as FlowNode;
       });
     });
@@ -101,6 +102,7 @@ export function Canvas({ common, active, focus }: { common: CommonProps; active:
     if (!active || !focus || handledFocus.current === focus.n) return;
     if (!nodes.some((n) => n.id === focus.id)) return; // not refreshed yet — try again on the next topology
     handledFocus.current = focus.n;
+    fitted.current = true; // the one-time fit-all mustn't zoom back out from the guest
     selectById(focus.id);
   }, [active, focus, nodes, selectById]);
 
@@ -175,10 +177,10 @@ export function Canvas({ common, active, focus }: { common: CommonProps; active:
         const rel = relatedKinds.get(n.id);
         if (rel && !focusIds.has(n.id)) classes.push(`rel-${rel}`);
         let out: FlowNode = n;
-        if (isGuestNode(n) && pendingVmids.has(n.data.vmid)) out = { ...n, data: { ...n.data, pending: true } };
+        if (isGuestNode(n) && pendingGuests.has(`${n.data.conn}/${n.data.vmid}`)) out = { ...n, data: { ...n.data, pending: true } };
         return classes.length ? ({ ...out, className: classes.join(' ') } as FlowNode) : out;
       }),
-    [nodes, q, matchesSearch, selected, neighborIds, relatedKinds, focusIds, pendingVmids],
+    [nodes, q, matchesSearch, selected, neighborIds, relatedKinds, focusIds, pendingGuests],
   );
 
   const viewEdges = useMemo(
@@ -286,7 +288,8 @@ export function Canvas({ common, active, focus }: { common: CommonProps; active:
           />
         </ReactFlow>
 
-        {selected && topo && <Inspector node={selected} topo={topo} onClose={() => selectById('')} onSelect={selectById} />}
+        {/* Keyed by node: a half-confirmed Stop or Delete must never carry over to the next guest you click. */}
+        {selected && topo && <Inspector key={selected.id} node={selected} topo={topo} onClose={() => selectById('')} onSelect={selectById} />}
 
         {!topo && topoQ.isPending && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-sm text-zinc-400">
@@ -302,7 +305,7 @@ export function Canvas({ common, active, focus }: { common: CommonProps; active:
               </div>
               <h2 className="text-sm font-semibold text-zinc-100">{noConnections ? 'No Proxmox hosts connected yet' : 'All connections are disabled'}</h2>
               <p className="mt-1 text-xs text-zinc-500">
-                {noConnections ? 'Add a host or cluster and ProxFlow will draw it here — nodes, guests, bridges and storage.' : 'Enable a connection to see its map.'}
+                {noConnections ? 'Add a host or cluster and ProxFlow will draw it here — nodes, guests, bridges and storage.' : 'Open a connection and press Save & connect to switch it back on.'}
               </p>
               <button
                 type="button"

@@ -18,6 +18,7 @@ export type Sim = {
   bootedAt?: number;
   setupAt?: number; // windows box: when ProxFlow ran the setup script via the agent
   typed: string; // esxi: text typed with sendkey
+  instance?: string; // echoed in the status file, like the real setup scripts do
   ksAt?: number;
 };
 
@@ -29,7 +30,7 @@ const DC = { adds: 0, promote: 3, rebootFrom: 7, rebootTo: 10, startAd: 10, read
 
 const DHCP_IP = (vmid: number) => `192.168.1.${100 + (vmid % 100)}`;
 
-type SetupCfg = { role?: string; domain?: string; installDrivers?: boolean; net?: { static?: boolean; ip?: string; prefix?: number }; join?: { domain?: string } };
+type SetupCfg = { instance?: string; role?: string; domain?: string; installDrivers?: boolean; net?: { static?: boolean; ip?: string; prefix?: number }; join?: { domain?: string } };
 
 /** Pull the base64 JSON config out of ProxFlow's PowerShell setup script. */
 function decodeSetup(script: string): SetupCfg | undefined {
@@ -58,8 +59,10 @@ export function initSim(g: MockGuest) {
     const net = JSON.parse(files.joliet.get('network-config')?.toString() ?? '{}') as { ethernets?: Record<string, { addresses?: string[] }> };
     const addr = Object.values(net.ethernets ?? {})[0]?.addresses?.[0];
     const meta = JSON.parse(files.joliet.get('proxflow.json')?.toString() ?? '{}') as { domain?: string };
+    const instance = /^instance-id:\s*(\S+)/m.exec(files.joliet.get('meta-data')?.toString() ?? '')?.[1];
     g.sim = {
       ...base,
+      instance,
       kind: 'linux',
       agent: g.box?.agent ?? true,
       cloudInit: g.box?.cloudInit ?? true,
@@ -71,6 +74,7 @@ export function initSim(g: MockGuest) {
     const cfg = decodeSetup(files.joliet.get('proxflow-setup.ps1')?.toString() ?? '');
     g.sim = {
       ...base,
+      instance: cfg?.instance,
       kind: 'windows-iso',
       agent: Boolean(cfg?.installDrivers),
       cloudInit: false,
@@ -173,7 +177,7 @@ export function agentUp(g: MockGuest, guests: MockGuest[]): boolean {
 export function statusFile(g: MockGuest, guests: MockGuest[]): string | null {
   const p = phase(g, guests);
   if (!p || p.rebooting) return null;
-  return `stage=${p.stage}\ndetail=${p.detail}\n`;
+  return `stage=${p.stage}\ndetail=${p.detail}\n${g.sim?.instance ? `instance=${g.sim.instance}\n` : ''}`;
 }
 
 export function openPorts(g: MockGuest, guests: MockGuest[]): number[] {
@@ -187,7 +191,9 @@ export function openPorts(g: MockGuest, guests: MockGuest[]): number[] {
       return t >= T.sshUp ? [22] : [];
     case 'windows-iso':
     case 'windows-box': {
-      const ports = t >= (s.kind === 'windows-iso' ? T.rdpUp : 8) ? [3389] : [];
+      // ISO installs switch RDP on as their last setup step; boxes do it while setting the identity.
+      const rdp = s.kind === 'windows-iso' ? t >= T.rdpUp && p?.stage === 'ready' : t >= 8;
+      const ports = rdp ? [3389] : [];
       if (s.role === 'dc' && p?.stage === 'ready') ports.push(389);
       // A DC built without the agent still finishes; expose LDAP on its timeline.
       if (s.role === 'dc' && !s.agent && s.kind === 'windows-iso' && t >= T.winAgent + DC.ready) ports.push(389);
@@ -208,6 +214,7 @@ export function guestIp(g: MockGuest): { ip: string; prefix: number } {
 export function onFileWrite(g: MockGuest, content: string) {
   const cfg = decodeSetup(content);
   if (!cfg || !g.sim) return;
+  g.sim.instance = cfg.instance;
   g.sim.role = roleOf(cfg);
   g.sim.domain = cfg.domain ?? cfg.join?.domain;
   if (cfg.net?.static && cfg.net.ip) {

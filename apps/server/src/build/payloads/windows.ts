@@ -7,6 +7,8 @@ const SETUP_TEMPLATE = readFileSync(new URL('./windows-setup.ps1', import.meta.u
 export type WindowsNet = { static: boolean; ip?: string; prefix?: number; gateway?: string; dns: string[] };
 
 export type WindowsSetupConfig = {
+  /** Written into the status file, so a stale one inside a box built from an earlier lab is ignored. */
+  instance: string;
   computerName: string;
   adminPassword: string;
   mac: string; // "BC-24-11-AA-BB-CC" (Windows format)
@@ -127,10 +129,6 @@ export function autounattendXml(o: AnswerFileOptions): string {
     ${COMPONENT('Microsoft-Windows-Shell-Setup')}
       <ComputerName>${x(s.computerName)}</ComputerName>
       <TimeZone>UTC</TimeZone>
-    </component>
-    ${COMPONENT('Microsoft-Windows-TerminalServices-LocalSessionManager')}<fDenyTSConnections>false</fDenyTSConnections></component>
-    ${COMPONENT('Networking-MPSSVC-Svc')}
-      <FirewallGroups><FirewallGroup wcm:action="add" wcm:keyValue="RemoteDesktop"><Active>true</Active><Group>Remote Desktop</Group><Profile>all</Profile></FirewallGroup></FirewallGroups>
     </component>
     ${tcpip}
     ${dns}

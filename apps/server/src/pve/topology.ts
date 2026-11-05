@@ -12,7 +12,7 @@ import {
   type TopoEdge,
   type TopoNode,
 } from '@proxflow/shared';
-import type { PveClient } from './client.js';
+import { PveError, type PveClient } from './client.js';
 import { parseDisks, parseNets } from './parse.js';
 import type { RawGuestConfig, RawGuestResource, RawNetwork, RawNodeResource, RawResource, RawStorageResource } from './types.js';
 
@@ -44,33 +44,38 @@ export async function buildTopology(client: PveClient, conn: ConnRef): Promise<C
   const c = conn.id;
   const [version, status, resources] = await Promise.all([
     client.version(),
-    client.clusterStatus(),
+    // /cluster/status needs Sys.Audit on "/", which VM-admin roles don't have; the map works without it.
+    client.clusterStatus().catch(() => []),
     client.clusterResources(),
   ]);
+
+  const rawNodes = resources.filter(isNode).sort((a, b) => a.node.localeCompare(b.node));
+  const rawGuests = resources.filter(isGuest).sort((a, b) => a.vmid - b.vmid);
+  const rawStorages = resources.filter(isStorage);
 
   const clusterEntry = status.find((s) => s.type === 'cluster');
   const nodeEntries = status.filter((s) => s.type === 'node');
   const cluster: ClusterInfo = {
     conn: c,
     connName: conn.name,
-    name: clusterEntry?.name ?? nodeEntries[0]?.name ?? conn.name,
+    name: clusterEntry?.name ?? nodeEntries[0]?.name ?? (rawNodes.length === 1 ? rawNodes[0]!.node : conn.name),
     quorate: clusterEntry ? clusterEntry.quorate === 1 : true, // standalone node: always "quorate"
-    nodeCount: clusterEntry?.nodes ?? nodeEntries.length,
+    nodeCount: clusterEntry?.nodes ?? (nodeEntries.length || rawNodes.length),
     version: version.version,
     mock: (version.repoid ?? '').startsWith('mock'),
     ok: true,
   };
 
-  const rawNodes = resources.filter(isNode).sort((a, b) => a.node.localeCompare(b.node));
-  const rawGuests = resources.filter(isGuest).sort((a, b) => a.vmid - b.vmid);
-  const rawStorages = resources.filter(isStorage);
-
   // Per-node network + per-guest config are the only non-cluster-wide calls.
+  const offline = new Set(rawNodes.filter((n) => n.status !== 'online').map((n) => n.node));
   const [networks, configs] = await Promise.all([
     mapLimit(rawNodes, 4, async (n): Promise<RawNetwork[]> =>
       n.status === 'online' ? client.nodeNetwork(n.node).catch(() => []) : [],
     ),
-    mapLimit(rawGuests, 8, (g) => client.guestConfig(g.node, g.type, g.vmid).catch((): RawGuestConfig => ({}))),
+    // Configs of guests on an offline node would each wait for a timeout (Proxmox proxies them to that node).
+    mapLimit(rawGuests, 8, (g) =>
+      offline.has(g.node) ? Promise.resolve<RawGuestConfig>({}) : client.guestConfig(g.node, g.type, g.vmid).catch((): RawGuestConfig => ({})),
+    ),
   ]);
 
   const nodes: TopoNode[] = [];
@@ -228,6 +233,9 @@ export async function buildTopology(client: PveClient, conn: ConnRef): Promise<C
   return { cluster, nodes, edges };
 }
 
+/** How long a refresh that fails with a network or server error may fall back to the last good topology. */
+const STALE_OK_MS = 20_000;
+
 export interface TopologyService {
   get(): Promise<ClusterTopology>;
   invalidate(): void;
@@ -236,23 +244,37 @@ export interface TopologyService {
 /** Memoises buildTopology for `cacheMs` and coalesces concurrent calls. */
 export function createTopologyService(client: PveClient, conn: ConnRef, cacheMs: number): TopologyService {
   let cached: { at: number; value: ClusterTopology } | null = null;
+  let lastGood: { at: number; value: ClusterTopology } | null = null;
   let inflight: Promise<ClusterTopology> | null = null;
+  let generation = 0; // bumped by invalidate(), so a fetch that started before an action can't be reused or cached
   return {
     get() {
       if (cached && Date.now() - cached.at < cacheMs) return Promise.resolve(cached.value);
       if (inflight) return inflight;
-      inflight = buildTopology(client, conn)
+      const gen = generation;
+      const p: Promise<ClusterTopology> = buildTopology(client, conn)
         .then((value) => {
-          cached = { at: Date.now(), value };
+          lastGood = { at: Date.now(), value };
+          if (gen === generation) cached = lastGood;
           return value;
         })
+        .catch((err: unknown) => {
+          // One missed answer (a busy node, a dropped packet) shouldn't flash the whole cluster red and
+          // reset the map's layout: show the last good picture for a little while before reporting it.
+          const blip = err instanceof PveError && (err.isNetwork || err.status >= 500);
+          if (blip && lastGood && Date.now() - lastGood.at < STALE_OK_MS) return lastGood.value;
+          throw err;
+        })
         .finally(() => {
-          inflight = null;
+          if (inflight === p) inflight = null;
         });
-      return inflight;
+      inflight = p;
+      return p;
     },
     invalidate() {
       cached = null;
+      inflight = null;
+      generation++;
     },
   };
 }

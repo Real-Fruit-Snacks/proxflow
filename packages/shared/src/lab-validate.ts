@@ -109,9 +109,16 @@ export function validateLab(spec: LabSpec, inv?: TargetInventory): LabIssue[] {
     names.set(key, id);
     if (usedNames.has(key)) warn(`A guest called "${name}" already exists on this cluster.`, id, 'name');
 
-    // ── resources
-    if (!(m.cores >= 1 && m.cores <= 512)) err('CPU cores must be at least 1.', id, 'cores');
-    if (!(m.diskGiB >= 1)) err('Disk size must be at least 1 GiB.', id, 'diskGiB');
+    // Active Directory computer accounts (sAMAccountName) hold 15 characters: longer names collide once cut.
+    const joins = (m.kind === 'linux-vm' || m.kind === 'windows') && m.joinDomainOf ? findDc(spec, m) : undefined;
+    if (joins && m.kind === 'linux-vm' && name.length > 15) err('Machines that join a domain can have names of at most 15 characters.', id, 'name');
+    if (joins?.domain?.netbios && joins.domain.netbios.trim().toUpperCase() === name.toUpperCase())
+      err('A machine can\'t have the same name as the domain it joins (NetBIOS name).', id, 'name');
+
+    // ── resources (also catches blank fields, which arrive as NaN or null)
+    if (!(Number.isInteger(m.cores) && m.cores >= 1 && m.cores <= 512)) err('CPU cores must be a whole number from 1 to 512.', id, 'cores');
+    if (!(Number.isInteger(m.memoryMiB) && m.memoryMiB > 0)) err('Memory must be a whole number of MiB.', id, 'memoryMiB');
+    if (!(Number.isInteger(m.diskGiB) && m.diskGiB >= 1)) err('Disk size must be a whole number of GiB, at least 1.', id, 'diskGiB');
 
     // ── credentials
     const pw = effectivePassword(spec, m);
@@ -135,7 +142,7 @@ export function validateLab(spec: LabSpec, inv?: TargetInventory): LabIssue[] {
     // ── network
     const bridge = m.net.bridge || spec.target.bridge;
     if (inv && bridge && !inv.bridges.some((b) => b.name === bridge)) err(`Bridge ${bridge} doesn't exist on ${inv.node}.`, id, 'bridge');
-    if (m.net.vlan !== undefined && !(m.net.vlan >= 1 && m.net.vlan <= 4094)) err('VLAN tag must be 1–4094.', id, 'vlan');
+    if (m.net.vlan !== undefined && !(Number.isInteger(m.net.vlan) && m.net.vlan >= 1 && m.net.vlan <= 4094)) err('VLAN tag must be a whole number from 1 to 4094.', id, 'vlan');
     if (m.net.ipMode === 'static') {
       const c = parseCidr(m.net.cidr);
       if (!c) err('Static address must look like 192.168.1.50/24.', id, 'cidr');
@@ -144,7 +151,7 @@ export function validateLab(spec: LabSpec, inv?: TargetInventory): LabIssue[] {
         const ip = ipOf(m.net.cidr!);
         if (ips.has(ip)) err(`${ip} is used by two machines.`, id, 'cidr');
         ips.set(ip, id);
-        if (usedIps.has(ip)) warn(`${ip} looks like it's already used by an existing guest.`, id, 'cidr');
+        if (usedIps.has(ip)) warn(`${ip} looks like it's already in use (by an existing guest, the Proxmox host or another lab).`, id, 'cidr');
         if (m.net.gateway) {
           if (parseIPv4(m.net.gateway) === null) err('Gateway must be an IPv4 address.', id, 'gateway');
           else if (!inSubnet(m.net.gateway, c)) err(`Gateway ${m.net.gateway} isn't in ${m.net.cidr}.`, id, 'gateway');
@@ -181,6 +188,8 @@ export function validateLab(spec: LabSpec, inv?: TargetInventory): LabIssue[] {
       case 'lxc': {
         if (m.memoryMiB < 64) err('Give it at least 64 MiB of memory.', id, 'memoryMiB');
         checkGuestSource(m.source, 'lxc', inv, (msg) => err(msg, id, 'source'));
+        if (!m.unprivileged && m.nesting)
+          warn('Proxmox only lets root@pam with a password (not an API token) turn on nesting for a privileged container.', id, 'nesting');
         break;
       }
       case 'windows': {

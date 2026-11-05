@@ -395,6 +395,7 @@ router.delete('/nodes/:node/:type/:vmid/snapshot/:snapname', (req, res) => {
     String(g.vmid),
     () => {
       const idx = g.snapshots.findIndex((s) => s.name === snapname);
+      if (idx === -1) throw new Error(`snapshot '${snapname}' does not exist`); // deleted by an earlier, queued task
       const removed = g.snapshots[idx];
       g.snapshots.splice(idx, 1);
       const child = g.snapshots.find((s) => s.parent === snapname);
@@ -445,6 +446,7 @@ router.post('/nodes/:node/:type/:vmid/clone', (req, res) => {
       }
       if (g.type === 'lxc') config.hostname = name;
       else config.name = name;
+      if (body.description !== undefined) config.description = body.description;
       guests.push({
         ...g,
         vmid: newid,

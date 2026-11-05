@@ -37,6 +37,13 @@ export function parseNets(type: GuestType, cfg: RawGuestConfig): NetIface[] {
         iface.mac = opts.macaddr;
         iface.model = opts.model;
       }
+      // Proxmox cloud-init settings for this NIC: "ip=10.0.0.5/24,gw=10.0.0.1" (or ip=dhcp).
+      const ipc = cfg[`ipconfig${key.slice(3)}`];
+      if (typeof ipc === 'string') {
+        const c = parseKv(ipc).opts;
+        if (c.ip) iface.ip = c.ip;
+        if (c.gw) iface.gateway = c.gw;
+      }
     } else {
       iface.name = opts.name;
       iface.mac = opts.hwaddr;

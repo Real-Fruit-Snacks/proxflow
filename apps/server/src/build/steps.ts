@@ -80,8 +80,19 @@ export async function waitForTask(ctx: TaskCtx, upid: unknown, opts: { what: str
   const node = upidNode(upid);
   const budget = opts.timeoutMs ?? 15 * 60_000;
   const deadline = Date.now() + ctx.timeout(budget);
+  let misses = 0;
   for (let n = 0; ; n++) {
-    const t = await ctx.client.taskStatus(node, upid);
+    let t: Awaited<ReturnType<PveClient['taskStatus']>>;
+    try {
+      t = await ctx.client.taskStatus(node, upid);
+      misses = 0;
+    } catch (e) {
+      // A network blip or a busy node shouldn't fail a two-hour restore: the task itself keeps running.
+      const transient = e instanceof PveError && (e.isNetwork || e.status >= 500);
+      if (!transient || ++misses > 5 || Date.now() > deadline) throw e;
+      await ctx.sleep(3000);
+      continue;
+    }
     if (t.status === 'stopped') {
       if (!t.exitstatus || t.exitstatus === 'OK' || t.exitstatus.startsWith('WARNINGS')) return;
       const tail = await ctx.client
@@ -151,13 +162,13 @@ export function pickIpv4(r: RawAgentInterfaces | undefined, mac?: string): strin
 }
 
 /** "stage=ready\ndetail=…" → { stage, detail } */
-export function parseStatus(content: string | undefined): { stage?: string; detail?: string } {
+export function parseStatus(content: string | undefined): { stage?: string; detail?: string; instance?: string } {
   const out: Record<string, string> = {};
   for (const line of (content ?? '').split(/\r?\n/)) {
     const i = line.indexOf('=');
     if (i > 0) out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
   }
-  return { stage: out.stage, detail: out.detail };
+  return { stage: out.stage, detail: out.detail, instance: out.instance };
 }
 
 /** True if something accepts TCP connections at host:port (used when a box has no guest agent). */

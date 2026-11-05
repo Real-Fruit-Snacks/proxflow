@@ -19,7 +19,8 @@ $self = "$pf\setup.ps1"
 if ($PSCommandPath -and ($PSCommandPath -ne $self)) { Copy-Item -Force $PSCommandPath $self }
 
 function Set-Stage([string]$Stage, [string]$Detail = '') {
-  $text = "stage=$Stage`r`ndetail=$Detail`r`nupdated=$((Get-Date).ToUniversalTime().ToString('o'))`r`n"
+  # instance= tells ProxFlow this status is from this deployment, not left in a box built from an earlier lab.
+  $text = "stage=$Stage`r`ndetail=$Detail`r`ninstance=$($cfg.instance)`r`nupdated=$((Get-Date).ToUniversalTime().ToString('o'))`r`n"
   [IO.File]::WriteAllText("$pf\status.txt", $text, [Text.Encoding]::ASCII)
   # Write-Host, not Write-Output: output would leak into the steps' $true/$false "needs reboot" return values.
   Write-Host "[$Stage] $Detail"
@@ -30,6 +31,13 @@ function Register-Resume {
   $trigger = New-ScheduledTaskTrigger -AtStartup
   $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
   Register-ScheduledTask -TaskName 'ProxFlowSetup' -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
+}
+
+# RDP is switched on at the end of setup (and for boxes, with the identity step): without a guest agent,
+# ProxFlow takes "RDP answers" to mean setup has finished, so the answer CD isn't ejected while still needed.
+function Enable-Rdp {
+  Enable-NetFirewallRule -DisplayGroup 'Remote Desktop' -ErrorAction SilentlyContinue
+  Set-ItemProperty 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections -Value 0
 }
 
 function Find-OnCd([string]$Relative) {
@@ -63,8 +71,13 @@ function Step-Drivers {
 function Step-Identity {
   if (-not $cfg.identity) { return $false }
   Set-Stage 'identity' "Setting name $($cfg.computerName), network and Administrator password"
-  net user Administrator $cfg.adminPassword | Out-Null
-  net user Administrator /active:yes | Out-Null
+  # The built-in Administrator (RID 500, whatever it is called in this language). Set through ADSI, not
+  # "net user": that mangles quotes under PowerShell 5.1 and stops to ask about passwords over 14 characters.
+  $adminName = (Get-CimInstance Win32_UserAccount -Filter 'LocalAccount=True' | Where-Object { $_.SID -match '-500$' } | Select-Object -First 1).Name
+  if (-not $adminName) { $adminName = 'Administrator' }
+  $admin = [ADSI]"WinNT://$env:COMPUTERNAME/$adminName,user"
+  $admin.SetPassword([string]$cfg.adminPassword)
+  net user $adminName /active:yes | Out-Null
   $ad = Get-NetAdapter | Where-Object { $_.MacAddress -eq $cfg.mac } | Select-Object -First 1
   if (-not $ad) { $ad = Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | Select-Object -First 1 }
   if ($ad -and $cfg.net.static) {
@@ -81,8 +94,7 @@ function Step-Identity {
     $max = (Get-PartitionSupportedSize -DriveLetter C).SizeMax
     if ($max -gt (Get-Partition -DriveLetter C).Size + 1MB) { Resize-Partition -DriveLetter C -Size $max }
   } catch { Write-Host "Couldn't extend C: $_" }
-  Enable-NetFirewallRule -DisplayGroup 'Remote Desktop' -ErrorAction SilentlyContinue
-  Set-ItemProperty 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections -Value 0
+  Enable-Rdp
   if ($env:COMPUTERNAME -ne $cfg.computerName) {
     Rename-Computer -NewName $cfg.computerName -Force
     return $true
@@ -140,6 +152,7 @@ function Step-Cleanup {
   Remove-ItemProperty -Path $wl -Name DefaultPassword -ErrorAction SilentlyContinue
   Remove-Item -Force -ErrorAction SilentlyContinue 'C:\Windows\Panther\unattend.xml', 'C:\Windows\Panther\Unattend\unattend.xml', 'C:\Windows\Temp\proxflow-setup.ps1', $stateFile, $self
   $done = switch ($cfg.role) { 'dc' { "Domain $($cfg.domain) is up" } 'member' { "Joined $($cfg.join.domain)" } default { 'Windows is ready' } }
+  Enable-Rdp
   Set-Stage 'ready' $done
   return $false
 }
@@ -161,5 +174,6 @@ try {
 } catch {
   Set-Stage 'failed' ((($_ | Out-String).Trim()) -replace '\s+', ' ')
   Unregister-ScheduledTask -TaskName 'ProxFlowSetup' -Confirm:$false -ErrorAction SilentlyContinue
+  try { Enable-Rdp } catch {} # so the machine can still be looked at
 }
 Stop-Transcript | Out-Null

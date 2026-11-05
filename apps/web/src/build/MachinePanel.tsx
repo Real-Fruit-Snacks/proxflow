@@ -1,5 +1,5 @@
 import { AlertTriangle, Trash2, Wand2, XCircle } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   LINUX_IMAGES,
   WINDOWS_EDITIONS,
@@ -139,7 +139,7 @@ export function MachinePanel({ machine: m, design, inv, issues, onChange, onDele
               </Field>
             )}
             <Field label="Extra packages" hint="optional — needs a reachable repo or mirror">
-              <TextInput value={m.packages.join(', ')} onChange={(v) => set({ packages: v.split(/[\s,]+/).filter(Boolean) })} placeholder="e.g. htop, git" mono />
+              <PackagesInput value={m.packages} onChange={(packages) => set({ packages })} />
             </Field>
           </>
         )}
@@ -376,5 +376,21 @@ export function Note({ tone, children }: { tone: 'error' | 'warn'; children: Rea
       <Icon className="mt-px h-3.5 w-3.5 shrink-0" />
       <span>{children}</span>
     </div>
+  );
+}
+
+/** Keeps the text as typed ("htop, " mid-word) and hands the parsed list up; splitting on every keystroke ate the separators. */
+function PackagesInput({ value, onChange }: { value: string[]; onChange: (packages: string[]) => void }) {
+  const [text, setText] = useState(value.join(', '));
+  return (
+    <TextInput
+      value={text}
+      onChange={(v) => {
+        setText(v);
+        onChange(v.split(/[\s,]+/).filter(Boolean));
+      }}
+      placeholder="e.g. htop, git"
+      mono
+    />
   );
 }

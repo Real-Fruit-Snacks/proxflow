@@ -15,7 +15,8 @@ const fmtName = (n: Record<string, unknown> | undefined) =>
   n ? Object.entries(n).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join('+') : String(v)}`).join(', ') : '';
 
 /** Fetches the server certificate without verifying it (only used to *display* it for trust decisions). */
-export function getCertificate(host: string, port: number, timeoutMs = 6000): Promise<CertificateInfo> {
+export function getCertificate(hostname: string, port: number, timeoutMs = 6000): Promise<CertificateInfo> {
+  const host = hostname.replace(/^\[(.*)\]$/, '$1'); // URL.hostname keeps the brackets of an IPv6 address
   return new Promise((resolve, reject) => {
     const sock = tls.connect(
       { host, port, servername: isIP(host) ? undefined : host, rejectUnauthorized: false, timeout: timeoutMs },
@@ -105,17 +106,21 @@ async function classifyFailure(err: unknown, u: URL, input: ConnectionInput): Pr
   }
 
   if (TLS_CODES.has(code) || /certificate|self.?signed|altname/i.test(detail)) {
+    const certificate = await certLookup();
+    const selfSigned = code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || certificate?.selfSigned === true;
     const message =
       code === 'ERR_TLS_CERT_ALTNAME_INVALID'
         ? `The certificate isn't issued for "${host}" (it's probably for the node's hostname).`
         : code === 'CERT_HAS_EXPIRED'
           ? 'The server\'s certificate has expired.'
-          : 'The server uses a self-signed certificate — normal for Proxmox.';
+          : selfSigned || code === 'SELF_SIGNED_CERT_IN_CHAIN'
+            ? 'The server uses a self-signed certificate — normal for Proxmox.'
+            : 'The server\'s certificate isn\'t signed by a certificate authority this computer trusts.';
     return fail(
       'TLS_UNTRUSTED',
       message,
       'Compare the fingerprint below with Proxmox → node → System → Certificates → Fingerprint, then trust it. ProxFlow pins that exact certificate.',
-      await certLookup(),
+      certificate,
     );
   }
 

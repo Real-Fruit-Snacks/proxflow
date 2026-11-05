@@ -134,5 +134,31 @@ console.log('\n── save / use / remove a second (https + password) connection
   check('unknown connection → 404', missing.status === 404, JSON.stringify(missing.json));
 }
 
+console.log('\n── request safety ──');
+{
+  // "%2E%2E" arrives as ".." and URL parsing would fold it away: DELETE …/snapshot/.. would hit the VM itself.
+  // (fetch() would normalise the dots away itself, so send the raw path the way curl --path-as-is does.)
+  const { request } = await import('node:http');
+  const u = new URL(API);
+  const dots = await new Promise((resolve, reject) => {
+    const req = request(
+      { host: u.hostname, port: u.port, method: 'DELETE', path: `${u.pathname}/guests/mock/pve1/qemu/100/snapshots/%2E%2E`, headers: { 'content-type': 'application/json' } },
+      (res) => {
+        let text = '';
+        res.on('data', (c) => (text += c));
+        res.on('end', () => resolve({ status: res.statusCode, text }));
+      },
+    );
+    req.on('error', reject);
+    req.end();
+  });
+  check('snapshot name ".." is refused', dots.status === 400, dots.text);
+  // Any web page can send a "simple" cross-site POST; only same-origin JS can send JSON without a preflight.
+  const plain = await fetch(`${API}/guests/mock/pve1/qemu/100/stop`, { method: 'POST' });
+  check('a change without a JSON content type is refused', plain.status === 415, String(plain.status));
+  const form = await fetch(`${API}/guests/mock/pve1/qemu/100/stop`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: 'x' });
+  check('…including text/plain from a form', form.status === 415, String(form.status));
+}
+
 console.log(failures ? `\n${failures} check(s) FAILED` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

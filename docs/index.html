@@ -54,7 +54,7 @@
       <p class="standfirst">A map and lab builder for Proxmox VE. Put a domain controller, Windows and Linux servers, containers and nested ESXi on a canvas, and ProxFlow builds each one from the ISOs, boxes and templates already on your storage. It needs no internet.</p>
       <div class="actions">
         <a class="button" href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip">Download for Windows</a>
-        <p class="action-meta">v0.1.0 · 35&nbsp;MB zip · Node.js inside, nothing to install</p>
+        <p class="action-meta">v0.1.1 · 35&nbsp;MB zip · Node.js inside, nothing to install</p>
       </div>
     </div>
 
@@ -190,7 +190,7 @@
     <dl class="title-block">
       <div><dt>Project</dt><dd>proxflow</dd></div>
       <div class="wide"><dt>Title</dt><dd>AD lab, as built</dd></div>
-      <div><dt>Rev</dt><dd>0.1.0</dd></div>
+      <div><dt>Rev</dt><dd>0.1.1</dd></div>
       <div><dt>Sheet</dt><dd>1 of 1</dd></div>
       <div><dt>Scale</dt><dd>NTS</dd></div>
       <div class="runtime"><dt>Runtime</dt><dd>Node.js 24.22.2</dd></div>
@@ -224,7 +224,7 @@
       <p class="small">Windows 10 or Server 2016 and newer, x64, with Edge, Chrome or Firefox. <code>ProxFlow-demo.cmd</code> runs everything against a simulated Proxmox, so you can try a whole lab at home first.</p>
       <div class="oneliner">
         <p class="small">Or from PowerShell:</p>
-        <div class="code"><pre><code id="ps">irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .</code></pre><button class="copy" type="button" data-copy="ps">Copy</button></div>
+        <div class="code"><pre><code id="ps">[Net.ServicePointManager]::SecurityProtocol = 'Tls12'; $ProgressPreference = 'SilentlyContinue'; irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .</code></pre><button class="copy" type="button" data-copy="ps">Copy</button></div>
       </div>
       <p class="small"><a class="pad" href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">Release notes and SHA-256 checksums</a></p>
     </div>
@@ -235,7 +235,7 @@
 <section class="region" id="how" aria-labelledby="h-how">
   <div class="region-head"><h2 id="h-how">How a lab gets built</h2><span class="ref">PF-03 · General notes</span></div>
   <ol class="notes">
-    <li><b>Nothing is downloaded.</b> Every machine comes from ISOs, boxes (backups and templates) and disk images already on Proxmox storage, local or shared.</li>
+    <li><b>Nothing is downloaded unless you ask.</b> Every machine comes from ISOs, boxes (backups and templates) and disk images already on Proxmox storage, local or shared. An official cloud image is a separate, opt-in source and needs internet on the node.</li>
     <li><b>The plan is checked before anything exists:</b> permissions, storage, free addresses, names and passwords. Nothing is created until you press Deploy.</li>
     <li><b>A box stored as a backup is restored once</b> and kept as a template tagged <code>pf-box</code>. The next lab clones it instead of restoring it again.</li>
     <li><b>Settings travel on a small generated CD:</b> an answer file for Windows Setup, a cloud-init seed for Linux, a kickstart file for ESXi. It holds passwords, so it is ejected and deleted once the machine is ready.</li>
@@ -291,7 +291,7 @@
   <div class="split">
     <ol class="steps steps-wide">
       <li>In Proxmox, open Datacenter, Permissions, API Tokens and add one, for example <code>root@pam!proxflow</code>.</li>
-      <li>Give it <code>PVEAuditor</code> on <code>/</code> for the map. To build labs, give it <code>PVEVMAdmin</code> on <code>/</code> and <code>PVEDatastoreUser</code> on your storages.</li>
+      <li>Give it <code>PVEAuditor</code> on <code>/</code> for the map. To build labs, add <code>PVEVMAdmin</code> on <code>/</code>, <code>PVEDatastoreAdmin</code> on <code>/storage</code> and, on Proxmox 8 or later, <code>PVESDNUser</code> on <code>/sdn/zones/localnetwork</code>.</li>
       <li>In ProxFlow, add the connection and press Test. A wrong port, an unknown name, a rejected token or a missing permission is named, with what to change.</li>
       <li>Compare the certificate's fingerprint with the node's System, Certificates page in Proxmox, then trust it. ProxFlow pins that exact certificate.</li>
     </ol>
@@ -309,12 +309,12 @@
       <div class="console" aria-label="What ProxFlow-demo.cmd prints when it starts">
 <pre><code>PS C:\Tools\proxflow&gt; .\ProxFlow-demo.cmd
 
-  ProxFlow 0.1.0  —  DEMO MODE (simulated Proxmox)
+  ProxFlow 0.1.1  —  DEMO MODE (simulated Proxmox, nothing real is touched)
 
   Open:   http://localhost:3001
   Data:   C:\Tools\proxflow\data\demo
 
-  Leave this window open while you use ProxFlow.</code></pre>
+  Leave this window open while you use ProxFlow. Press Ctrl+C to stop.</code></pre>
       </div>
     </div>
   </div>
@@ -346,7 +346,10 @@
   </div>
   <table class="revisions">
     <thead><tr><th scope="col">Rev</th><th scope="col">Date</th><th scope="col">Description</th></tr></thead>
-    <tbody><tr><td>0.1.0</td><td>2026-11-05</td><td>First release: map, connections, lab builder, Windows zip. <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">Download</a></td></tr></tbody>
+    <tbody>
+      <tr><td>0.1.1</td><td>2026-11-05</td><td>Fixes: safer Destroy and snapshot deletes, maps for VM-admin tokens, Windows and Rocky readiness, lab history. <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">Download</a></td></tr>
+      <tr><td>0.1.0</td><td>2026-11-05</td><td>First release: map, connections, lab builder, Windows zip.</td></tr>
+    </tbody>
   </table>
 </section>
 </main>
