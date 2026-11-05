@@ -30,8 +30,8 @@
   --space-xl-3xl: clamp(3rem, 1.75rem + 5.5556vw, 6.75rem);
 
   /* color, as light-dark(film, blueprint).
-     Film: drafting film, technical pen, non-photo blue, redline.
-     Blueprint: Prussian blue sheet, white line, pale cyan grid, a warmer redline that holds up on blue. */
+     Film: drafting film, technical pen, non-photo blue. Blueprint: Prussian blue sheet, white line, pale cyan grid.
+     The one accent is Ember from the RFS brand (brand/tokens/rfs.css): Dayshift on film, Nightshift on blueprint. */
   --bg: light-dark(oklch(0.965 0.006 210), oklch(0.235 0.055 257));
   --surface: light-dark(oklch(0.985 0.004 210), oklch(0.31 0.085 256));
   --ink: light-dark(oklch(0.24 0.03 255), oklch(0.965 0.012 235));
@@ -39,10 +39,10 @@
   --line: light-dark(oklch(0.83 0.012 230), oklch(0.5 0.07 250));
   --construction: light-dark(oklch(0.80 0.07 225), oklch(0.74 0.1 225));
   --grid: light-dark(oklch(0.80 0.07 225 / .14), oklch(0.74 0.1 225 / .13));
-  --accent: light-dark(oklch(0.53 0.19 27), oklch(0.56 0.19 28));
-  --accent-hover: light-dark(oklch(0.47 0.18 27), oklch(0.62 0.18 29));
-  --on-accent: oklch(0.985 0.004 210);
-  --redline: light-dark(oklch(0.53 0.19 27), oklch(0.76 0.14 33));   /* stamp and focus */
+  --accent: light-dark(#C03B0A, #FF6A3D);                     /* Ember: download, stamp, focus */
+  --accent-hover: light-dark(color-mix(in oklch, #C03B0A 84%, black), color-mix(in oklch, #FF6A3D 80%, white));
+  --on-accent: light-dark(#FFFFFF, #0C0D10);                  /* the brand: white on Ember is 2.9:1 in Nightshift */
+  --redline: var(--accent);
 
   --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --mono: "Martian Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -104,9 +104,10 @@ b { font-weight: 640; }
 .sheet-body { position: relative; border: var(--pen) solid var(--ink); padding: var(--space-l-2xl) var(--space-m-xl) var(--space-m-xl);
   display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--space-l-2xl);
   grid-template-areas: "head head" "text plot" "act plot" ". block";
-  /* faint graph film */
-  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 24px 24px; background-position: -1px -1px; }
+  isolation: isolate; --cell: 24px; }
+/* faint graph film: one grid cell drawn as an SVG mask, filled with the theme grid colour */
+.sheet-body::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background-color: var(--grid);
+  mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2724%27 height=%2724%27%3E%3Cpath d=%27M0 .5H24M.5 0V24%27 stroke=%27%23000%27/%3E%3C/svg%3E") -1px -1px / var(--cell) var(--cell); }
 .hero-copy { display: contents; }
 h1 { grid-area: head; font-size: var(--display); font-weight: 760; font-stretch: 116%; line-height: .98; letter-spacing: -0.035em;
   margin-bottom: var(--space-l-2xl); }
@@ -279,7 +280,8 @@ th.num, td.num:last-child { text-align: right; padding-right: 0; }
   .print { margin-left: auto; }
   .zones { font-size: 0.625rem; }
   .sheet { margin-inline: var(--space-2xs); }
-  .sheet-body { background-size: 16px 16px; }
+  .sheet-body { --cell: 16px; }
+  .sheet-body::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27%3E%3Cpath d=%27M0 .5H16M.5 0V16%27 stroke=%27%23000%27/%3E%3C/svg%3E"); }
   .button { width: 100%; justify-content: center; }
   .standfirst { font-size: var(--step-0); }
   /* phones get the portrait drawing, run out to the sheet border */

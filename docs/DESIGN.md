@@ -27,16 +27,19 @@ Scale: 16 → 18px, ratio 1.2 → 1.333 (scripts/scale.mjs); the hero headline i
 - ink-muted: oklch(0.45 0.025 250)
 - line: oklch(0.83 0.012 230)
 - construction (non-photo blue): oklch(0.80 0.07 225). Grid, crosshair, guides only, never text.
-- accent (redline): oklch(0.53 0.19 27). Only the download action, the As built stamp and focus rings.
-- on-accent: oklch(0.985 0.004 210)
+- accent: Ember from the RFS brand (`~/Projects/rfs-brand/brand/tokens/rfs.css`), Dayshift `#C03B0A` on film with
+  white text. Only the download action, the As built stamp and focus rings: one Ember element per screen, as the
+  brand asks. This is the only thing the page takes from the brand; type, layout and neutrals are its own.
+- on-accent: `#FFFFFF`
 
 Dark mode is a blueprint print of the same sheet: a Prussian-blue sheet with white line, the way drawings
-were copied before plotters. Tokens are written as light-dark(film, blueprint) in styles.css.
+were copied before plotters. Tokens are written as light-dark(film, blueprint) in styles.css. No gradients (a brand rule): the graph grid
+is an SVG mask filled with the grid colour.
 - bg: oklch(0.235 0.055 257) · surface (sheet): oklch(0.31 0.085 256)
 - ink: oklch(0.965 0.012 235) · ink-muted: oklch(0.83 0.035 238) · line: oklch(0.5 0.07 250)
 - construction: oklch(0.74 0.1 225); grid at 13%
-- accent (button): oklch(0.56 0.19 28) with white text · redline (stamp, focus): oklch(0.76 0.14 33), lighter so
-  it holds up on blue
+- accent: Nightshift Ember `#FF6A3D` for the button, stamp and focus, with `#0C0D10` text on the button (the brand:
+  white on Ember is 2.9:1). Ember on the blue sheet is 4.6:1.
 It follows the system setting. A "Blueprint" check box in the masthead overrides it and is remembered
 (localStorage proxflow-print); switching feeds the new print down the page with a view-transition wipe
 (instant with reduced motion). Without JS the switch is hidden and the system setting still applies.
