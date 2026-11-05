@@ -46,6 +46,35 @@
     });
   }
 
+  // Film (light) or blueprint (dark). Follows the system until someone picks one; the choice is remembered.
+  const toggle = document.querySelector('[data-print-toggle]');
+  if (toggle) {
+    const root = document.documentElement;
+    const system = matchMedia('(prefers-color-scheme: dark)');
+    const metas = document.querySelectorAll('meta[name="theme-color"]');
+    const colours = { film: '#eff5f6', blueprint: '#0c1e37' };
+    const current = () => root.dataset.print || (system.matches ? 'blueprint' : 'film');
+    const sync = () => {
+      const mode = current();
+      toggle.setAttribute('aria-pressed', String(mode === 'blueprint'));
+      if (root.dataset.print) metas.forEach((m) => { m.content = colours[mode]; });
+    };
+    const choose = (mode) => {
+      root.dataset.print = mode;
+      try { localStorage.setItem('proxflow-print', mode); } catch {}
+      sync();
+    };
+    toggle.addEventListener('click', () => {
+      const next = current() === 'blueprint' ? 'film' : 'blueprint';
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (document.startViewTransition && !still) document.startViewTransition(() => choose(next));
+      else choose(next);
+    });
+    system.addEventListener('change', sync);
+    toggle.hidden = false;
+    sync();
+  }
+
   for (const button of document.querySelectorAll('[data-copy]')) {
     const source = document.getElementById(button.dataset.copy);
     if (!source) continue;

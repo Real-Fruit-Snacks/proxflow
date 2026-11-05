@@ -30,6 +30,17 @@ Scale: 16 → 18px, ratio 1.2 → 1.333 (scripts/scale.mjs); the hero headline i
 - accent (redline): oklch(0.53 0.19 27). Only the download action, the As built stamp and focus rings.
 - on-accent: oklch(0.985 0.004 210)
 
+Dark mode is a blueprint print of the same sheet: a Prussian-blue sheet with white line, the way drawings
+were copied before plotters. Tokens are written as light-dark(film, blueprint) in styles.css.
+- bg: oklch(0.235 0.055 257) · surface (sheet): oklch(0.31 0.085 256)
+- ink: oklch(0.965 0.012 235) · ink-muted: oklch(0.83 0.035 238) · line: oklch(0.5 0.07 250)
+- construction: oklch(0.74 0.1 225); grid at 13%
+- accent (button): oklch(0.56 0.19 28) with white text · redline (stamp, focus): oklch(0.76 0.14 33), lighter so
+  it holds up on blue
+It follows the system setting. A "Blueprint" check box in the masthead overrides it and is remembered
+(localStorage proxflow-print); switching feeds the new print down the page with a view-transition wipe
+(instant with reduced motion). Without JS the switch is hidden and the system setting still applies.
+
 ## Layout
 One sheet, 78rem wide. Every section is a region of it: a hairline rule carrying the heading on the left and a
 drawing reference on the right, then its content. Dense tables (parts list, equipment schedule) alternate with

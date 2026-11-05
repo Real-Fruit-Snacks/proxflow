@@ -19,7 +19,10 @@
 <link rel="icon" href="favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#eff5f6">
+<meta name="theme-color" content="#eff5f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1e37" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<script>try{var p=localStorage.getItem("proxflow-print");if(p==="film"||p==="blueprint")document.documentElement.dataset.print=p}catch(e){}</script>
 <link rel="preload" href="assets/fonts/archivo-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/martian-mono-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
@@ -34,6 +37,7 @@
     <a href="#screens">Screens</a>
     <a href="https://github.com/Real-Fruit-Snacks/proxflow">GitHub</a>
   </nav>
+  <button class="print" type="button" aria-pressed="false" data-print-toggle hidden><i aria-hidden="true"></i>Blueprint</button>
 </header>
 
 <main id="top">
