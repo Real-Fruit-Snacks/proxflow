@@ -2,7 +2,7 @@
   "name": "proxflow",
   "version": "0.1.0",
   "private": true,
-  "description": "React Flow-style map and offline lab builder for Proxmox VE",
+  "description": "Proxmox map and lab builder that works offline",
   "packageManager": "pnpm@10.34.9",
   "scripts": {
     "dev": "concurrently -k -n mock,api,web -c magenta,cyan,green \"pnpm --filter @proxflow/mock-pve dev\" \"pnpm --filter @proxflow/server dev:mock\" \"pnpm --filter @proxflow/web dev\"",

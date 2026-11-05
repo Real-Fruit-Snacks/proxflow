@@ -1,0 +1,52 @@
+<!-- proxflow cover panel: the Build canvas after a deploy. A domain controller and three members
+     joined to its domain, each reporting ready. 480x368, origin = panel top-left.
+     Rendered by Real-Fruit-Snacks/rfs-brand tools/make-cover.py; colours are {tokens}. -->
+<rect width="480" height="368" fill="{code-bg}"/>
+<!-- title bar -->
+<rect width="480" height="34" fill="{surface}"/><rect y="34" width="480" height="1" fill="{line}"/>
+<circle cx="20" cy="17" r="4.5" fill="{line}"/><circle cx="36" cy="17" r="4.5" fill="{line}"/><circle cx="52" cy="17" r="4.5" fill="{line}"/>
+<rfs-text font="mono" size="12" x="240" y="21.5" anchor="middle" ls="0.5" fill="{mute}">AD lab · pve1</rfs-text>
+
+<!-- join lines: members up to the domain controller -->
+<path d="M84 206 C84 170 240 176 240 140" fill="none" stroke="{ember}" stroke-width="1.6" stroke-dasharray="4 4"/>
+<path d="M240 206 L240 140" fill="none" stroke="{ember}" stroke-width="1.6" stroke-dasharray="4 4"/>
+<path d="M396 206 C396 170 240 176 240 140" fill="none" stroke="{ember}" stroke-width="1.6" stroke-dasharray="4 4"/>
+<circle cx="240" cy="140" r="3.5" fill="{ember}"/>
+<circle cx="84" cy="206" r="3.5" fill="{ember}"/><circle cx="240" cy="206" r="3.5" fill="{ember}"/><circle cx="396" cy="206" r="3.5" fill="{ember}"/>
+
+<!-- domain controller -->
+<rect x="146" y="58" width="188" height="82" rx="8" fill="{surface}" stroke="{line-strong}" stroke-width="1"/>
+<rfs-text font="mono-semibold" size="13" x="162" y="82" fill="{text}">dc01</rfs-text>
+<rfs-text font="mono" size="10" x="318" y="82" anchor="end" fill="{mute}">104</rfs-text>
+<rfs-text font="sans" size="11" x="162" y="99" fill="{mute}">Domain controller · lab.internal</rfs-text>
+<circle cx="166" cy="121" r="3.5" fill="{mint}"/>
+<rfs-text font="mono" size="11" x="176" y="125" fill="{mint}">ready</rfs-text>
+<rfs-text font="sans" size="11" x="216" y="125" fill="{mute}">domain is up</rfs-text>
+
+<!-- members -->
+<rect x="14" y="206" width="140" height="82" rx="8" fill="{surface}" stroke="{line}" stroke-width="1"/>
+<rfs-text font="mono-semibold" size="13" x="28" y="230" fill="{text}">ws01</rfs-text>
+<rfs-text font="sans" size="11" x="28" y="247" fill="{mute}">Windows Server</rfs-text>
+<circle cx="32" cy="269" r="3.5" fill="{mint}"/>
+<rfs-text font="mono" size="11" x="42" y="273" fill="{mint}">ready</rfs-text>
+<rfs-text font="sans" size="11" x="82" y="273" fill="{mute}">joined</rfs-text>
+
+<rect x="170" y="206" width="140" height="82" rx="8" fill="{surface}" stroke="{line}" stroke-width="1"/>
+<rfs-text font="mono-semibold" size="13" x="184" y="230" fill="{text}">ws02</rfs-text>
+<rfs-text font="sans" size="11" x="184" y="247" fill="{mute}">Windows Server</rfs-text>
+<circle cx="188" cy="269" r="3.5" fill="{mint}"/>
+<rfs-text font="mono" size="11" x="198" y="273" fill="{mint}">ready</rfs-text>
+<rfs-text font="sans" size="11" x="238" y="273" fill="{mute}">joined</rfs-text>
+
+<rect x="326" y="206" width="140" height="82" rx="8" fill="{surface}" stroke="{line}" stroke-width="1"/>
+<rfs-text font="mono-semibold" size="13" x="340" y="230" fill="{text}">linux01</rfs-text>
+<rfs-text font="sans" size="11" x="340" y="247" fill="{mute}">Linux VM · box</rfs-text>
+<circle cx="344" cy="269" r="3.5" fill="{mint}"/>
+<rfs-text font="mono" size="11" x="354" y="273" fill="{mint}">ready</rfs-text>
+<rfs-text font="sans" size="11" x="394" y="273" fill="{mute}">joined</rfs-text>
+
+<!-- deployment strip -->
+<rect y="310" width="480" height="58" fill="{surface}"/><rect y="310" width="480" height="1" fill="{line}"/>
+<rfs-text font="sans-semibold" size="12" x="20" y="334" fill="{text}">AD lab · deployed</rfs-text>
+<rfs-text font="mono" size="11" x="20" y="352" fill="{mute}">from share:iso and share:backup, no internet</rfs-text>
+<rfs-text font="mono-semibold" size="12" x="460" y="334" anchor="end" fill="{mint}">4/4 up</rfs-text>

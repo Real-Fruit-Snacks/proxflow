@@ -1,0 +1,109 @@
+/* proxflow page additions on top of the shared RFS page styles (site.css).
+   Motion: only the four brand motions (BRAND.md section 8). */
+
+/* Focus: 2px Ember outline, 3px offset, on every focusable element (BRAND.md section 1). */
+:focus-visible { outline: 2px solid var(--rfs-primary); outline-offset: 3px; }
+
+/* ---------- hero ---------- */
+.hero { padding-bottom: var(--rfs-space-8); }
+.hero .install.side { align-self: end; }
+.install .pane.dl { justify-content: flex-start; gap: var(--rfs-space-4); flex-wrap: wrap; }
+.install .pane.dl .btn.primary { color: var(--rfs-on-primary); font-weight: 600; }
+.install .meta { font-family: var(--rfs-font-mono); font-size: 12px; color: var(--rfs-mute); }
+.install .meta a { color: var(--rfs-mute); }
+.install .foot code { font-size: 12px; }
+
+/* The dot grid warms to Ember around the pointer (Nightshift, fine pointers; JS sets --x / --y). */
+.hero .grid-warm { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background-image: radial-gradient(var(--rfs-primary) 1.2px, transparent 1.2px); background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(180px circle at var(--x, -999px) var(--y, -999px), #000, transparent 75%);
+  mask-image: radial-gradient(180px circle at var(--x, -999px) var(--y, -999px), #000, transparent 75%); }
+:root[data-theme="dayshift"] .hero .grid-warm { display: none; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="nightshift"]) .hero .grid-warm { display: none; } }
+.hero.warm .grid-warm { opacity: .9; }
+
+/* ---------- screens: Build / Map ---------- */
+.tour { margin-top: var(--rfs-space-7); }
+.tour-tabs { display: none; gap: var(--rfs-space-1); margin-bottom: var(--rfs-space-3); }
+.js .tour-tabs { display: flex; }
+.tour-tabs button { font-family: var(--rfs-font-mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--rfs-mute); background: var(--rfs-surface); border: 1px solid var(--rfs-line); border-radius: 6px; padding: 7px 14px; cursor: pointer;
+  transition: color var(--rfs-dur-fast) var(--rfs-ease), border-color var(--rfs-dur-fast) var(--rfs-ease); }
+.tour-tabs button[aria-selected="true"] { color: var(--rfs-text); border-color: var(--rfs-line-strong); box-shadow: inset 0 -2px 0 var(--rfs-primary); }
+@media (hover: hover) { .tour-tabs button:hover { color: var(--rfs-text); } }
+.tour figure { margin: 0 0 var(--rfs-space-5); }
+.js .tour figure { margin-bottom: 0; }
+.js .tour figure[hidden] { display: none; }
+.tour .shot { background: var(--rfs-code-bg); }
+:root:not([data-theme="dayshift"]) .tour .shot { box-shadow: 0 0 80px color-mix(in srgb, var(--rfs-primary) 12%, transparent); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="nightshift"]) .tour .shot { box-shadow: var(--card-shadow); } }
+figcaption { font-size: 13px; color: var(--rfs-mute); margin-top: var(--rfs-space-3); max-width: 80ch; }
+.tour .note { font-family: var(--rfs-font-mono); font-size: 11px; letter-spacing: .04em; color: var(--rfs-mute); margin: var(--rfs-space-2) 0 0; }
+
+/* ---------- sections ---------- */
+.two { align-items: start; }
+figure.aside { margin: 0; }
+section h2 { text-wrap: balance; }
+section p, li, figcaption { text-wrap: pretty; }
+ol.steps { margin-top: var(--rfs-space-5); }
+.matrix { margin-top: var(--rfs-space-7); overflow-x: auto; }
+.matrix table { min-width: 720px; }
+.matrix td:first-child { font-family: var(--rfs-font-sans); font-size: 14px; font-weight: 600; }
+#what td:first-child, #config td:first-child { color: var(--rfs-text); }
+
+/* ---------- terminal (Run it) ---------- */
+.term .cmd { display: inline-block; vertical-align: top; }
+.term .cursor { display: inline-block; width: 8px; height: 15px; vertical-align: -3px; background: var(--rfs-primary); }
+
+/* ---------- motion: the brand's four, and only with no-preference ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* 1. The Ember rule draws in under the name, once. */
+  .hero h1::after { transform-origin: left center; animation: rfs-rule var(--rfs-dur-slow) var(--rfs-ease) 150ms both; }
+
+  /* 2. The terminal types its command, then prints its output line by line (when scrolled into view). */
+  .js .term[data-type] .cmd { clip-path: inset(0 100% 0 0); }
+  .js .term[data-type] .out { opacity: 0; }
+  .js .term[data-type].play .cmd { animation: rfs-type calc(var(--n) * var(--rfs-type-rate)) steps(var(--n)) var(--at) forwards; }
+  .js .term[data-type].play .out { animation: rfs-show 1ms linear var(--at) forwards; }
+  .js .term[data-type].play .cursor { animation: rfs-blink 1s steps(1) var(--at) 2; } /* blinks twice, then stays */
+
+  /* 3. The warm dots fade with the pointer. */
+  .hero .grid-warm { transition: opacity var(--rfs-dur-base) var(--rfs-ease); }
+
+  /* 4. The theme switch sweeps in from the control (View Transitions; proxflow.js). */
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+}
+@keyframes rfs-rule { from { transform: scaleX(0); } }
+@keyframes rfs-type { to { clip-path: inset(0 0 0 0); } }
+@keyframes rfs-show { to { opacity: 1; } }
+@keyframes rfs-blink { 50% { opacity: 0; } }
+
+/* Screenshots open full size (they're dense UI). */
+a.zoom { display: block; text-decoration: none; border-radius: 12px; }
+a.zoom .shot { transition: border-color var(--rfs-dur-fast) var(--rfs-ease); }
+@media (hover: hover) { a.zoom:hover .shot { border-color: var(--rfs-line-strong); cursor: zoom-in; } }
+
+/* Tap targets of at least 24px for the header's GitHub link and the footer links
+   (shared site.css leaves them at text height; BRAND.md fix to suggest). */
+nav a { display: inline-flex; align-items: center; min-height: 32px; }
+footer a { display: inline-flex; align-items: center; justify-content: center; min-height: 28px; min-width: 28px; }
+
+/* ---------- small screens ---------- */
+@media (max-width: 860px) {
+  .tour { margin-top: var(--rfs-space-5); }
+}
+/* The machine table stacks into labelled rows instead of scrolling sideways. */
+@media (max-width: 640px) {
+  .matrix table, .matrix tbody, .matrix tr, .matrix td { display: block; min-width: 0; width: auto; }
+  .matrix tr:first-child { display: none; }
+  .matrix tr { padding: var(--rfs-space-4) 0; border-bottom: 1px solid var(--rfs-line); }
+  .matrix td { border: 0; padding: var(--rfs-space-1) 0; white-space: normal; }
+  .matrix td:first-child { font-size: 15px; padding-bottom: var(--rfs-space-2); }
+  .matrix td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; font-family: var(--rfs-font-mono);
+    font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--rfs-mute); margin-bottom: 2px; }
+}
+@media (max-width: 480px) {
+  .hero { padding-top: var(--rfs-space-7); }
+  .install .pane.dl .btn.primary { width: 100%; justify-content: center; }
+  .term pre { font-size: 11px; }
+}

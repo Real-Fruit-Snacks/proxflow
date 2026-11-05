@@ -4,11 +4,11 @@ A visual map of your Proxmox VE hosts and a drag-and-drop lab builder (Active Di
 
 ### Download and run (Windows)
 
-1. Download **`proxflow-{{version}}-windows-x64.zip`** below.
+1. Download **`proxflow-windows-x64.zip`** below.
 2. Right-click the zip → **Properties** → tick **Unblock** → OK, then extract it anywhere.
 3. Double-click **`ProxFlow.cmd`** — your browser opens ProxFlow. Try **`ProxFlow-demo.cmd`** first to explore with a simulated Proxmox.
 
-**Everything is in the zip**: the Node.js {{node}} runtime, the server and the web UI. No installation, no internet, no admin rights. Requires Windows 10 / Server 2016 or newer (x64) and a modern browser (Edge, Chrome or Firefox). See `README.txt` inside for connecting to Proxmox, options and notes.
+**Everything is in the zip**: the Node.js {{node}} runtime, the server and the web UI. No installation, no internet, no admin rights. Requires Windows 10 / Server 2016 or newer (x64) and a current browser (Edge, Chrome or Firefox). See `README.txt` inside for connecting to Proxmox, options and notes.
 
 ### What's in it
 

@@ -3,3 +3,5 @@
 *.png binary
 *.ico binary
 *.zip binary
+*.woff2 binary
+*.webp binary

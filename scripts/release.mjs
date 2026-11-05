@@ -3,7 +3,7 @@
 //
 //   node scripts/release.mjs [--targets windows-x64[,linux-x64]] [--skip-web]
 //
-// Output: release/proxflow-<version>-<target>.(zip|tar.gz) and release/SHA256SUMS.txt
+// Output: release/proxflow-<target>.(zip|tar.gz) (holding a proxflow-<version>-<target> folder) and release/SHA256SUMS.txt
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -162,7 +162,8 @@ for (const target of targets) {
     { path: 'data/.keep', data: Buffer.alloc(0) },
     ...Object.entries(win ? windowsFiles(VERSION) : linuxFiles(VERSION)).map(([path, text]) => ({ path, data: Buffer.from(text), mode: path.endsWith('.sh') ? 0o755 : 0o644 })),
   ];
-  const name = `${top}.${TARGETS[target].format}`;
+  // Version-free file name so releases/latest/download/<name> is a permanent link; the folder inside is versioned.
+  const name = `proxflow-${target}.${TARGETS[target].format}`;
   const buf =
     TARGETS[target].format === 'zip'
       ? Buffer.from(zipSync(Object.fromEntries(entries.map((e) => [`${top}/${e.path}`, [new Uint8Array(e.data), { level: 9, mtime: mtime * 1000 }]]))))

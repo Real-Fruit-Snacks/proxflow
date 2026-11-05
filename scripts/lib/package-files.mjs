@@ -55,7 +55,7 @@ Things Windows may ask the first time:
 - "Windows Defender Firewall has blocked some features": Allow only lets OTHER computers reach
   ProxFlow. You can choose Cancel - ProxFlow still works on this computer.
 
-Any modern browser works: Edge (built into Windows 10/11), Chrome or Firefox. Internet Explorer
+Any current browser works: Edge (built into Windows 10/11), Chrome or Firefox. Internet Explorer
 does not. On a Windows Server without Edge, open the address from another computer instead.`
     : `Run ./proxflow.sh and open the address it prints in a browser. Press Ctrl+C to stop.`
 }

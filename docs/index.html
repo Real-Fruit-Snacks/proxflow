@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>proxflow — Proxmox map and lab builder that works offline</title>
+<meta name="description" content="ProxFlow draws a Proxmox VE cluster as a live map and builds labs on it (an AD domain controller, Windows and Linux servers joined to it, containers, nested ESXi) from the ISOs, boxes and templates already on your storage. One Windows zip, no install, no internet.">
+<link rel="canonical" href="https://real-fruit-snacks.github.io/proxflow/">
+<meta property="og:title" content="proxflow">
+<meta property="og:description" content="Proxmox map and lab builder that works offline">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://real-fruit-snacks.github.io/proxflow/">
+<meta property="og:image" content="https://real-fruit-snacks.github.io/proxflow/assets/cover-dark.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="560">
+<meta property="og:image:alt" content="proxflow's Build canvas after a deploy: a domain controller and three members joined to its domain, each reporting ready">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0C0D10">
+<script>
+  // Theme before first paint: a saved choice wins, otherwise follow the OS.
+  (function () {
+    try {
+      var t = localStorage.getItem('rfs-theme');
+      if (t === 'nightshift' || t === 'dayshift') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+    document.documentElement.classList.add('js');
+  })();
+</script>
+<link rel="preload" href="assets/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/ibm-plex-mono-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/rfs.css">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/proxflow.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="https://real-fruit-snacks.github.io/" aria-label="RFS home">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Real-Fruit-Snacks/rfs-brand/main/assets/rfs-lockup-dark.svg">
+        <img alt="RFS" src="https://raw.githubusercontent.com/Real-Fruit-Snacks/rfs-brand/main/assets/rfs-lockup-light.svg" data-lockup>
+      </picture>
+      <span class="sep" aria-hidden="true"></span>
+      <span class="name">proxflow</span>
+    </a>
+    <nav>
+      <a href="#install">Download</a>
+      <a href="#how">How it works</a>
+      <a href="#connect">Connecting</a>
+      <a href="#config">Configuration</a>
+      <a class="keep" href="https://github.com/Real-Fruit-Snacks/proxflow">GitHub</a>
+      <button class="toggle" type="button" id="theme" aria-label="Switch between Nightshift and Dayshift"><span class="night">Nightshift</span><span class="day">Dayshift</span></button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="hero">
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="grid-warm" aria-hidden="true"></div>
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <div>
+      <p class="label">Windows · Proxmox VE 8 · offline</p>
+      <h1>proxflow</h1>
+      <p class="lead">Proxmox map and lab builder that works offline</p>
+      <p class="sub">ProxFlow draws your Proxmox cluster as a live map and builds labs on it: a domain controller, Windows and Linux servers joined to its domain, containers, nested ESXi. Every machine comes from ISOs, boxes and templates already on your storage.</p>
+    </div>
+
+    <div class="install side" id="install">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-pane="dl">Download</button>
+        <button role="tab" aria-selected="false" data-pane="ps">PowerShell</button>
+      </div>
+      <div class="pane dl" data-active data-id="dl">
+        <a class="btn primary" href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip">Download the Windows zip</a>
+        <span class="meta">v0.1.0 · 35 MB · <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">checksums</a></span>
+      </div>
+      <div class="pane" data-id="ps"><pre><code>irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .</code></pre><button class="copy" data-copy="irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .">Copy</button></div>
+      <div class="foot">Unblock the zip (Properties, Unblock), extract it anywhere and double-click <code>ProxFlow.cmd</code>. Node.js is inside: no installer, no admin rights. Start with <code>ProxFlow-demo.cmd</code> to try it against a simulated Proxmox.</div>
+    </div>
+
+    <div class="full tour" id="screens">
+      <div class="tour-tabs" role="tablist" aria-label="Screens">
+        <button role="tab" id="tab-build" aria-selected="true" aria-controls="screen-build">Build</button>
+        <button role="tab" id="tab-map" aria-selected="false" aria-controls="screen-map">Map</button>
+      </div>
+      <figure id="screen-build" role="tabpanel" aria-labelledby="tab-build">
+        <a class="zoom" href="assets/shot-build.webp" aria-label="Open the full-size screenshot"><img class="shot" src="assets/shot-build.webp" width="1800" height="1125" alt="The Build screen after a deploy: dc01 on top with ws01, ws02 and linux01 joined to its domain by dashed lines, and a deployment panel listing all four machines as ready with their IP addresses and login lines"></a>
+        <figcaption>An Active Directory lab after a deploy: the domain controller came from the Windows Server ISO, the members from a template and a box on the share. All four report ready with an address and a login line.</figcaption>
+      </figure>
+      <figure id="screen-map" role="tabpanel" aria-labelledby="tab-map">
+        <a class="zoom" href="assets/shot-map.webp" aria-label="Open the full-size screenshot"><img class="shot" src="assets/shot-map.webp" width="1800" height="1125" loading="lazy" alt="The Map: node pve1 with its guests, bridges and local storage, node pve2 beside it, shared storage below, and dc01 selected with its inspector open"></a>
+        <figcaption>The map of the same cluster. Selecting dc01 traces its network card to vmbr0 and its disk to local-lvm, and opens power actions and snapshots.</figcaption>
+      </figure>
+      <p class="note">Screens from demo mode, which runs against a simulated Proxmox.</p>
+    </div>
+  </div>
+</div>
+
+<section id="why">
+  <div class="wrap two">
+    <div>
+      <p class="label">Why</p>
+      <h2>Labs on a network that can't reach the internet</h2>
+    </div>
+    <div>
+      <p>The Proxmox I build labs on has no internet. Installer ISOs sit on one share, community-built boxes on another, and every machine meant the same routine: restore the box, find it in the sidebar, clone it, then set its name, address and domain by hand. ProxFlow does that routine, and the setup inside each machine, from one canvas.</p>
+      <p class="mute">Nothing is downloaded while you work. The one option that needs internet, an official cloud image, says so where you pick it.</p>
+    </div>
+  </div>
+</section>
+
+<section id="what">
+  <div class="wrap two">
+    <div>
+      <p class="label">What's in it</p>
+      <h2>Three screens and one zip</h2>
+    </div>
+    <table>
+      <tr><th>Part</th><th>Does</th></tr>
+      <tr><td>Map</td><td>Every node, VM, container, bridge and storage on one canvas, with live CPU and memory, power actions and snapshots</td></tr>
+      <tr><td>Connections</td><td>Adds a host with an API token or a password; Test explains certificate, login, network and permission problems</td></tr>
+      <tr><td>Build</td><td>Drag machines onto a canvas, join them to a domain, review the plan, deploy, destroy</td></tr>
+      <tr><td>Demo mode</td><td>A simulated Proxmox with ISOs, boxes and templates, for trying a whole lab anywhere</td></tr>
+      <tr><td>The zip</td><td>Node.js 24, the server and the web UI in one folder; nothing is installed or fetched at run time</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="two">
+      <div>
+        <p class="label">How it works</p>
+        <h2>What happens when you press Deploy</h2>
+        <ol class="steps">
+          <li>The plan is checked first: permissions, storage, free addresses, names and passwords. Nothing is created until you confirm.</li>
+          <li>A box stored as a backup is restored once and kept as a template tagged <code>pf-box</code>. Later labs clone it.</li>
+          <li>Each machine gets its settings on a small generated CD: an answer file for Windows Setup, a cloud-init seed for Linux, a kickstart file for ESXi.</li>
+          <li>ProxFlow waits for each machine to report in through the QEMU guest agent. A box without the agent is checked over SSH, RDP or LDAP on its static address.</li>
+          <li>The setup CD holds passwords, so it is ejected and deleted once the machine is ready. Destroy lab removes exactly what the deployment created.</li>
+        </ol>
+      </div>
+      <figure class="aside">
+        <a class="zoom" href="assets/shot-review.webp" aria-label="Open the full-size screenshot"><img class="shot" src="assets/shot-review.webp" width="1150" height="813" loading="lazy" alt="The Review and deploy dialog: four machines with their VMIDs, addresses and how ProxFlow will know each is ready, the files it will upload or reuse, and a note that Linux needs realmd, sssd and adcli to join the domain"></a>
+        <figcaption>Review and deploy: what will be created, what is reused from storage, and how each machine will be confirmed.</figcaption>
+      </figure>
+    </div>
+
+    <div class="matrix">
+      <table>
+        <tr><th>Machine</th><th>Built from</th><th>Set up by</th><th>Ready when</th></tr>
+        <tr><td data-label="Machine">Domain controller</td><td data-label="Built from">Windows Server 2019, 2022 or 2025 ISO</td><td data-label="Set up by">Unattended install, then a new AD forest</td><td data-label="Ready when">The agent reports the domain is up, or LDAP answers</td></tr>
+        <tr><td data-label="Machine">Windows Server</td><td data-label="Built from">The ISO, or a Windows box or template</td><td data-label="Set up by">Unattended install, or a script sent through the guest agent</td><td data-label="Ready when">The agent reports it joined, or RDP answers</td></tr>
+        <tr><td data-label="Machine">Linux VM</td><td data-label="Built from">A box (backup), template or disk image</td><td data-label="Set up by">cloud-init seed; realmd joins the domain</td><td data-label="Ready when">cloud-init reports done, or SSH answers</td></tr>
+        <tr><td data-label="Machine">Container</td><td data-label="Built from">A container template or backup</td><td data-label="Set up by">Proxmox container settings</td><td data-label="Ready when">Proxmox reports its address</td></tr>
+        <tr><td data-label="Machine">ESXi host</td><td data-label="Built from">The ESXi installer ISO</td><td data-label="Set up by">Kickstart CD, nested virtualization</td><td data-label="Ready when">HTTPS answers on its address</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="connect">
+  <div class="wrap two">
+    <div>
+      <p class="label">Connecting</p>
+      <h2>An API token and one certificate check</h2>
+      <ol class="steps">
+        <li>In Proxmox: Datacenter, Permissions, API Tokens, Add. For example <code>root@pam!proxflow</code>.</li>
+        <li>Give it <code>PVEAuditor</code> on <code>/</code> for the map, or <code>PVEVMAdmin</code> on <code>/</code> plus <code>PVEDatastoreUser</code> on your storages to build labs.</li>
+        <li>In ProxFlow: the connection button, Add connection, then Test. A wrong port, an unknown name, a rejected token or a missing permission is named, with what to change.</li>
+        <li>Proxmox uses a self-signed certificate. Compare the fingerprint with node, System, Certificates in Proxmox, then Trust this certificate. ProxFlow pins that exact certificate.</li>
+      </ol>
+    </div>
+    <figure class="aside">
+      <a class="zoom" href="assets/shot-connect.webp" aria-label="Open the full-size screenshot"><img class="shot" src="assets/shot-connect.webp" width="1225" height="870" loading="lazy" alt="The Connections dialog after Test: a card explaining the server uses a self-signed certificate, with its issuer, names, expiry and SHA-256 fingerprint and a Trust this certificate button"></a>
+      <figcaption>Test against a host with a self-signed certificate: the details to compare, then one button to pin it.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="run">
+  <div class="wrap two">
+    <div>
+      <p class="label">Run it</p>
+      <h2>Double-click, or start it from a console</h2>
+      <p><code>ProxFlow.cmd</code> starts the server and opens your browser. Keep its window open while you work; close it or press Ctrl+C to stop. If port 3001 is busy, the next free one is used.</p>
+      <p class="mute">Connections, including token secrets, and lab history are kept in the <code>data</code> folder next to it, or in <code>%LOCALAPPDATA%\ProxFlow</code> when that folder can't be written. To upgrade, extract the new zip and copy <code>data</code> across.</p>
+    </div>
+    <div class="term" data-type aria-label="Example: starting ProxFlow in demo mode from PowerShell">
+      <div class="bar"><i></i><i></i><i></i><span>C:\Tools\proxflow</span></div>
+<pre><code><span class="p">PS&gt;</span> <span class="cmd" style="--n:19; --at:300ms">.\ProxFlow-demo.cmd</span>
+
+<span class="out c" style="--at:1300ms">  ProxFlow 0.1.0  —  DEMO MODE (simulated Proxmox)</span>
+
+<span class="out c" style="--at:1450ms">  Open:   http://localhost:3001</span>
+<span class="out c" style="--at:1600ms">          http://192.168.1.50:3001</span>
+<span class="out c" style="--at:1750ms">  Data:   C:\Tools\proxflow\data\demo</span>
+
+<span class="out c" style="--at:1900ms">  Leave this window open while you use ProxFlow.</span>
+<span class="out c" style="--at:2050ms">  Press Ctrl+C to stop.</span>
+<span class="out" style="--at:2200ms"><span class="cursor" aria-hidden="true"></span></span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="config">
+  <div class="wrap two">
+    <div>
+      <p class="label">Configuration</p>
+      <h2>Options</h2>
+      <p class="mute">Pass them to <code>ProxFlow.cmd</code>. Hosts are added in the app; the environment variables are for running it as a service.</p>
+    </div>
+    <table>
+      <tr><th>Setting</th><th>Does</th></tr>
+      <tr><td>--port 8080</td><td>Serve on another port (default 3001, or the next free one)</td></tr>
+      <tr><td>--host 127.0.0.1</td><td>Only this computer can open ProxFlow</td></tr>
+      <tr><td>--data-dir &lt;path&gt;</td><td>Keep connections and lab history somewhere else</td></tr>
+      <tr><td>--demo</td><td>Use the simulated Proxmox</td></tr>
+      <tr><td>--no-open</td><td>Don't open a browser</td></tr>
+      <tr><td>PVE_URL</td><td>Add a host from the environment, with <code>PVE_TOKEN_ID</code> and <code>PVE_TOKEN_SECRET</code>; <code>PVE_FINGERPRINT</code> pins its certificate</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="tested">
+  <div class="wrap two">
+    <div>
+      <p class="label">Tested on</p>
+      <ul class="plain">
+        <li>Windows 11 Pro · the release zip with its bundled Node.js 24.22.2</li>
+        <li>GitHub Actions <code>windows-latest</code> on every release: a fresh extract with no Node.js on PATH, a 10-machine lab, and a read-only install folder</li>
+        <li>The simulated Proxmox VE 8.4 API in demo mode: an AD forest, Windows and Linux boxes with and without the guest agent, containers, nested ESXi, and 37 connection checks</li>
+        <li><em>Not</em> tested: a real Proxmox host. Everything above ran against the simulated API.</li>
+      </ul>
+    </div>
+    <div>
+      <p class="label">Known issues</p>
+      <ul class="plain">
+        <li>Reading the config inside backups, importing disk images (Proxmox 8.3+) and the guest-agent permission names on Proxmox 9 follow the documentation and have not met real hardware yet.</li>
+        <li>Nested ESXi types its boot option at the installer menu. If that is missed, press Shift+O in the console and add <code>ks=cdrom:/KS.CFG</code>.</li>
+        <li>The Windows edition list assumes Microsoft's usual image order inside the ISO.</li>
+        <li>A Linux box joins the domain only if <code>realmd</code>, <code>sssd</code> and <code>adcli</code> are already in the image.</li>
+        <li>ProxFlow has no login of its own. Start it with <code>--host 127.0.0.1</code> on a shared network.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>MIT · <a href="https://github.com/Real-Fruit-Snacks/proxflow">Source</a> · <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases">Releases</a></span>
+    <span><a href="https://real-fruit-snacks.github.io/">RFS</a> · Real tools. No filler. · <a href="https://github.com/Real-Fruit-Snacks/rfs-brand/blob/main/BRAND.md">Brand</a></span>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+<script src="assets/proxflow.js"></script>
+</body>
+</html>

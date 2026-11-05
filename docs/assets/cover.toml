@@ -1,0 +1,17 @@
+# Cover + social preview. Render from the folder that holds both clones:
+#   py -3 rfs-brand/tools/make-cover.py proxflow/docs/assets/cover.toml
+# Rules: rfs-brand BRAND.md section 7.
+
+name        = "proxflow"
+description = "Proxmox map and lab builder that works offline"
+
+bullets = [
+  "Builds labs from ISOs and boxes already on storage",
+  "AD forest, Windows, Linux, containers, nested ESXi",
+  "One Windows zip with Node.js inside, no install",
+  "Proxmox VE 8 via API token or password",
+]
+
+[panel]
+kind = "art"
+file = "cover-art.svg"
