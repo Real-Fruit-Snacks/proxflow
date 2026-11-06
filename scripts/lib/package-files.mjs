@@ -154,3 +154,116 @@ agent are up - the lab machines' IP addresses.
 Third-party licenses: THIRD-PARTY-NOTICES.txt and node/LICENSE.
 `;
 }
+
+
+// ───────────────────────── offline developer kit ─────────────────────────
+// Written with String.raw so the Windows paths keep their backslashes. Batch notes: %~dp0 is expanded once,
+// so folders with % ^ & ( in their names are safe inside quotes; "call other.cmd" would expand them a second
+// time, so each file stands alone.
+export function devKitFiles(version, nodeVersion, pnpmVersion) {
+  return {
+    'setup.cmd': crlf(String.raw`@echo off
+rem One-time setup of the ProxFlow developer kit: unpacks the package store and installs it into source\, offline.
+title ProxFlow developer kit setup
+"%~dp0node\node.exe" "%~dp0source\scripts\dev-kit-setup.mjs" %*
+if not "%errorlevel%"=="0" (
+  echo.
+  echo Setup did not finish - see the messages above.
+  pause
+  exit /b 1
+)
+echo.
+echo Next: double-click dev-shell.cmd
+pause
+`),
+    'dev-shell.cmd': crlf(String.raw`@echo off
+rem A Command Prompt for working on ProxFlow, with this kit's Node.js and pnpm first on PATH.
+title ProxFlow dev shell
+set "PATH=%~dp0node;%PATH%"
+cd /d "%~dp0source"
+if not exist "node_modules\" (
+  echo The packages aren't installed yet: run setup.cmd first.
+  pause
+  exit /b 1
+)
+echo ProxFlow ${version} dev shell - Node.js ${nodeVersion} and pnpm ${pnpmVersion} from this kit.
+echo.
+echo   pnpm dev           simulated Proxmox + API + web UI, open http://localhost:5180
+echo   pnpm typecheck     type-check every package
+echo   pnpm smoke         connection checks, while pnpm dev runs in another dev shell
+echo   pnpm smoke:build   lab-builder checks, while pnpm dev runs in another dev shell
+echo   pnpm release       build release\proxflow-windows-x64.zip
+echo.
+cmd /k
+`),
+    'node/pnpm.cmd': crlf(String.raw`@"%~dp0node.exe" "%~dp0..\pnpm\bin\pnpm.cjs" %*` + '\n'),
+    'node/pnpx.cmd': crlf(String.raw`@"%~dp0node.exe" "%~dp0..\pnpm\bin\pnpx.cjs" %*` + '\n'),
+    // For Git Bash and other sh-style shells on Windows.
+    'node/pnpm': String.raw`#!/bin/sh
+basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+exec "$basedir/node.exe" "$basedir/../pnpm/bin/pnpm.cjs" "$@"
+`,
+    'README.txt': crlf(devKitReadme(version, nodeVersion, pnpmVersion)),
+  };
+}
+
+function devKitReadme(version, nodeVersion, pnpmVersion) {
+  return String.raw`ProxFlow ${version} - offline developer kit
+${'='.repeat(42)}
+
+Everything needed to change, test and build ProxFlow on a Windows computer with no internet:
+the source code, Node.js ${nodeVersion}, pnpm ${pnpmVersion} and every package the project uses.
+No installation and no admin rights. (To only use ProxFlow, get proxflow-windows-x64.zip instead.)
+
+
+SET UP (once)
+-------------
+1. Downloaded the zip from the internet? Right-click it > Properties > tick "Unblock" > OK
+   BEFORE extracting.
+2. Extract it to a short path such as C:\dev - some packages have long file names.
+3. Double-click setup.cmd. It unpacks the packages into store\ and installs them into
+   source\ (a minute or two, no network used), then makes the simulated Proxmox's certificate.
+
+Moved or copied the kit folder? Run setup.cmd again: it redoes the links the move broke.
+
+
+WORK ON IT
+----------
+Double-click dev-shell.cmd: a Command Prompt in source\ with this kit's Node.js and pnpm on
+PATH. Type "powershell" in it if you prefer PowerShell; an editor started from it (for
+example "code .") gets the same tools.
+
+  pnpm dev           simulated Proxmox (:8006 http, :8007 https) + API (:3001) + web UI
+                     on http://localhost:5180 - changes reload as you save
+  pnpm dev:real      the same without the simulator, to connect to a real Proxmox
+  pnpm typecheck     type-check every package
+  pnpm smoke         connection checks       } while pnpm dev runs
+  pnpm smoke:build   lab-builder checks      } in a second dev shell
+  pnpm release       build release\proxflow-windows-x64.zip, the same package that is published
+
+source\docs\DEVELOPMENT.md explains how the code fits together.
+
+
+ADDING OR UPGRADING PACKAGES
+----------------------------
+Offline, pnpm can only install what is already in store\, which is exactly what
+source\pnpm-lock.yaml lists. To add or upgrade a package, copy the whole kit to a computer
+with internet and run this in its dev shell:
+
+  pnpm add <package> --config.offline=false
+
+The new package lands in store\. Copy the kit folder back and run setup.cmd once.
+
+
+WHAT IS WHERE
+-------------
+  source\        the ProxFlow repository (no git history - run "git init" there if you use git)
+  node\          Node.js ${nodeVersion} (node.exe), plus pnpm.cmd and pnpx.cmd
+  pnpm\          pnpm ${pnpmVersion}
+  store.tar.gz   every package, packed; setup.cmd unpacks it into store\
+  source\.npmrc  written by setup.cmd: points pnpm at store\ and keeps it offline
+
+Licenses: source\LICENSE (ProxFlow, MIT), node\LICENSE (Node.js) and THIRD-PARTY-NOTICES.txt
+(pnpm and every package in the store; each package also keeps its own license file).
+`;
+}

@@ -54,7 +54,7 @@
       <p class="standfirst">A map and lab builder for Proxmox VE. Put a domain controller, Windows and Linux servers, containers and nested ESXi on a canvas, and ProxFlow builds each one from the ISOs, boxes and templates already on your storage. It needs no internet.</p>
       <div class="actions">
         <a class="button" href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip">Download for Windows</a>
-        <p class="action-meta">v0.1.1 · 35&nbsp;MB zip · Node.js inside, nothing to install</p>
+        <p class="action-meta">v0.1.2 · 35&nbsp;MB zip · Node.js inside, nothing to install</p>
       </div>
     </div>
 
@@ -190,7 +190,7 @@
     <dl class="title-block">
       <div><dt>Project</dt><dd>proxflow</dd></div>
       <div class="wide"><dt>Title</dt><dd>AD lab, as built</dd></div>
-      <div><dt>Rev</dt><dd>0.1.1</dd></div>
+      <div><dt>Rev</dt><dd>0.1.2</dd></div>
       <div><dt>Sheet</dt><dd>1 of 1</dd></div>
       <div><dt>Scale</dt><dd>NTS</dd></div>
       <div class="runtime"><dt>Runtime</dt><dd>Node.js 24.22.2</dd></div>
@@ -227,6 +227,7 @@
         <div class="code"><pre><code id="ps">[Net.ServicePointManager]::SecurityProtocol = 'Tls12'; $ProgressPreference = 'SilentlyContinue'; irm https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-windows-x64.zip -OutFile proxflow.zip; Expand-Archive proxflow.zip .</code></pre><button class="copy" type="button" data-copy="ps">Copy</button></div>
       </div>
       <p class="small"><a class="pad" href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">Release notes and SHA-256 checksums</a></p>
+      <p class="small">Changing ProxFlow on a computer without internet? <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest/download/proxflow-dev-windows-x64.zip"><code>proxflow-dev-windows-x64.zip</code></a> (80&nbsp;MB) holds the source, Node.js, pnpm and every package; its <code>setup.cmd</code> installs them offline.</p>
     </div>
   </div>
 </section>
@@ -309,7 +310,7 @@
       <div class="console" aria-label="What ProxFlow-demo.cmd prints when it starts">
 <pre><code>PS C:\Tools\proxflow&gt; .\ProxFlow-demo.cmd
 
-  ProxFlow 0.1.1  —  DEMO MODE (simulated Proxmox, nothing real is touched)
+  ProxFlow 0.1.2  —  DEMO MODE (simulated Proxmox, nothing real is touched)
 
   Open:   http://localhost:3001
   Data:   C:\Tools\proxflow\data\demo
@@ -347,7 +348,8 @@
   <table class="revisions">
     <thead><tr><th scope="col">Rev</th><th scope="col">Date</th><th scope="col">Description</th></tr></thead>
     <tbody>
-      <tr><td>0.1.1</td><td>2026-11-05</td><td>Fixes: safer Destroy and snapshot deletes, maps for VM-admin tokens, Windows and Rocky readiness, lab history. <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">Download</a></td></tr>
+      <tr><td>0.1.2</td><td>2026-11-05</td><td>Offline developer kit: source, Node.js, pnpm and every package in one zip. <a href="https://github.com/Real-Fruit-Snacks/proxflow/releases/latest">Download</a></td></tr>
+      <tr><td>0.1.1</td><td>2026-11-05</td><td>Fixes: safer Destroy and snapshot deletes, maps for VM-admin tokens, Windows and Rocky readiness, lab history.</td></tr>
       <tr><td>0.1.0</td><td>2026-11-05</td><td>First release: map, connections, lab builder, Windows zip.</td></tr>
     </tbody>
   </table>

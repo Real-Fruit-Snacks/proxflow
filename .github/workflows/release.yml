@@ -1,7 +1,7 @@
 name: Release
 
 # Push a tag like v0.1.0 to build, test and publish a release.
-# "Run workflow" (manual) builds and tests without publishing; the package is attached to the run.
+# "Run workflow" (manual) builds and tests without publishing; the packages are attached to the run.
 on:
   push:
     tags: ['v*']
@@ -13,7 +13,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -35,14 +35,17 @@ jobs:
 
       - run: pnpm typecheck
 
-      - name: Build the self-contained package
-        run: pnpm release
+      - name: Build the self-contained package and the offline developer kit
+        run: pnpm release --dev-kit
 
       - name: Test the package (fresh extract, no Node.js on PATH, demo mode, full lab suite)
         run: node scripts/release-smoke.mjs --port 3101
 
       - name: Test with a read-only install folder
         run: node scripts/release-smoke.mjs --port 3102 --readonly-data
+
+      - name: Test the developer kit (fresh extract, no Node.js, pnpm or registry; setup, typecheck, release build, dev servers, both smoke suites)
+        run: node scripts/dev-kit-smoke.mjs
 
       - uses: actions/upload-artifact@v7
         with:

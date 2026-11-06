@@ -30,7 +30,8 @@ The Proxmox I build labs on has no internet. ISOs sit on one share and community
 
 - Windows 11 Pro · the release zip with its bundled Node.js 24.22.2
 - GitHub Actions `windows-latest` on every release · a fresh extract with no Node.js on PATH, a 10-machine lab, a read-only install folder
-- The simulated Proxmox VE 8.4 API in demo mode · an AD forest, Windows and Linux boxes with and without the guest agent, containers, nested ESXi, 37 connection checks
+- The simulated Proxmox VE 8.4 API in demo mode · an AD forest, Windows and Linux boxes with and without the guest agent, containers, nested ESXi, 40 connection checks
+- The developer kit on the same runner · set up with no Node.js, pnpm or registry, then typecheck, the dev servers, both smoke suites and a release build
 - *Not* tested: a real Proxmox host. Everything above ran against the simulated API.
 
 ## Known issues
@@ -56,7 +57,7 @@ Options for `ProxFlow.cmd`:
 
 Proxmox roles for the API token: `PVEAuditor` on `/` for the map. To build labs, add `PVEVMAdmin` on `/`, `PVEDatastoreAdmin` on `/storage` and, on Proxmox 8 or later, `PVESDNUser` on `/sdn/zones/localnetwork`.
 
-Building from source and releasing: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Building from source and releasing: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). To work on ProxFlow on a computer without internet, download `proxflow-dev-windows-x64.zip` from the release: the source, Node.js, pnpm and every package, set up by one `setup.cmd`.
 
 ## License
 

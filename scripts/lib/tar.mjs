@@ -1,5 +1,5 @@
-// Minimal ustar reader/writer. Writing explicit modes means a release built on Windows still marks
-// the Linux launcher and node binary as executable.
+// Minimal tar reader/writer. Writing explicit modes means a release built on Windows still marks
+// the Linux launcher and node binary as executable. Paths too long for ustar get a pax header.
 import { gunzipSync, gzipSync } from 'node:zlib';
 
 const BLOCK = 512;
@@ -8,7 +8,7 @@ function octal(buf, off, len, value) {
   buf.write(value.toString(8).padStart(len - 1, '0') + '\0', off, len, 'ascii');
 }
 
-/** "a/b/c" → ustar name (≤100) + prefix (≤155), split at a "/". */
+/** "a/b/c" → ustar name (≤100) + prefix (≤155), split at a "/"; undefined if it doesn't fit. */
 function splitPath(path) {
   if (Buffer.byteLength(path) <= 100) return { name: path, prefix: '' };
   for (let i = path.length - 1; i > 0; i--) {
@@ -17,12 +17,13 @@ function splitPath(path) {
     const name = path.slice(i + 1);
     if (Buffer.byteLength(prefix) <= 155 && Buffer.byteLength(name) <= 100) return { name, prefix };
   }
-  throw new Error(`path too long for ustar: ${path}`);
+  return undefined;
 }
 
 function header(path, { size, mode, mtime, type }) {
   const h = Buffer.alloc(BLOCK);
-  const { name, prefix } = splitPath(path);
+  const split = splitPath(path);
+  const { name, prefix } = split ?? { name: path.slice(-100), prefix: '' }; // the pax header before it has the full path
   h.write(name, 0, 100, 'utf8');
   octal(h, 100, 8, mode);
   octal(h, 108, 8, 0);
@@ -42,11 +43,25 @@ function header(path, { size, mode, mtime, type }) {
   return h;
 }
 
+/** A pax "x" record carrying the full path, for paths ustar can't hold. */
+function paxPath(path, mtime) {
+  const rest = ` path=${path}\n`;
+  let len = Buffer.byteLength(rest);
+  while (String(len).length + Buffer.byteLength(rest) !== len) len = String(len).length + Buffer.byteLength(rest);
+  const body = Buffer.from(`${len}${rest}`);
+  const pad = (BLOCK - (body.length % BLOCK)) % BLOCK;
+  return [header('PaxHeader', { size: body.length, mode: 0o644, mtime, type: 'x' }), body, Buffer.alloc(pad)];
+}
+
+function entryHeader(path, opts) {
+  return splitPath(path) ? [header(path, opts)] : [...paxPath(path, opts.mtime), header(path, opts)];
+}
+
 /**
  * entries: { path, data?: Buffer, mode?: number, dir?: boolean }[]
  * Parent directories are added automatically.
  */
-export function createTarGz(entries, { mtime = Math.floor(Date.now() / 1000) } = {}) {
+export function createTarGz(entries, { mtime = Math.floor(Date.now() / 1000), level = 9 } = {}) {
   const parts = [];
   const dirs = new Set();
   const addDir = (p) => {
@@ -54,7 +69,7 @@ export function createTarGz(entries, { mtime = Math.floor(Date.now() / 1000) } =
     if (parent && !dirs.has(parent)) addDir(parent);
     if (!dirs.has(p)) {
       dirs.add(p);
-      parts.push(header(`${p}/`, { size: 0, mode: 0o755, mtime, type: '5' }));
+      parts.push(...entryHeader(`${p}/`, { size: 0, mode: 0o755, mtime, type: '5' }));
     }
   };
   for (const e of entries) {
@@ -65,22 +80,21 @@ export function createTarGz(entries, { mtime = Math.floor(Date.now() / 1000) } =
       continue;
     }
     const data = Buffer.from(e.data);
-    parts.push(header(e.path, { size: data.length, mode: e.mode ?? 0o644, mtime, type: '0' }));
+    parts.push(...entryHeader(e.path, { size: data.length, mode: e.mode ?? 0o644, mtime, type: '0' }));
     parts.push(data);
     const pad = (BLOCK - (data.length % BLOCK)) % BLOCK;
     if (pad) parts.push(Buffer.alloc(pad));
   }
   parts.push(Buffer.alloc(BLOCK * 2));
-  return gzipSync(Buffer.concat(parts), { level: 9 });
+  return gzipSync(Buffer.concat(parts), { level });
 }
 
-/** Extracts the named files from a .tar.gz (handles pax and GNU long-name headers). */
-export function extractFromTarGz(gz, wanted) {
+/** Every entry of a .tar.gz as { name, type, mode, data } (handles pax and GNU long-name headers). */
+export function* readTarGz(gz) {
   const tar = gunzipSync(gz);
-  const out = new Map();
   let off = 0;
   let longName;
-  let paxPath;
+  let pax;
   while (off + BLOCK <= tar.length) {
     const h = tar.subarray(off, off + BLOCK);
     if (h.every((b) => b === 0)) break;
@@ -88,7 +102,7 @@ export function extractFromTarGz(gz, wanted) {
     const size = parseInt(field(124, 12).trim() || '0', 8);
     const type = field(156, 1) || '0';
     const prefix = h.toString('ascii', 257, 262) === 'ustar' ? field(345, 155) : '';
-    let name = prefix ? `${prefix}/${field(0, 100)}` : field(0, 100);
+    const name = prefix ? `${prefix}/${field(0, 100)}` : field(0, 100);
     const data = tar.subarray(off + BLOCK, off + BLOCK + size);
     off += BLOCK + Math.ceil(size / BLOCK) * BLOCK;
     if (type === 'L') {
@@ -96,16 +110,19 @@ export function extractFromTarGz(gz, wanted) {
       continue;
     }
     if (type === 'x' || type === 'g') {
-      if (type === 'x') {
-        const m = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(data.toString('utf8'));
-        if (m) paxPath = m[1];
-      }
+      if (type === 'x') pax = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(data.toString('utf8'))?.[1];
       continue;
     }
-    name = paxPath ?? longName ?? name;
-    paxPath = undefined;
+    const octalField = (o, l) => parseInt(field(o, l).trim() || '0', 8);
+    yield { name: pax ?? longName ?? name, type: type === '\0' ? '0' : type, mode: octalField(100, 8), mtime: octalField(136, 12), data };
+    pax = undefined;
     longName = undefined;
-    if ((type === '0' || type === '\0') && wanted.includes(name)) out.set(name, Buffer.from(data));
   }
+}
+
+/** Extracts the named files from a .tar.gz. */
+export function extractFromTarGz(gz, wanted) {
+  const out = new Map();
+  for (const e of readTarGz(gz)) if (e.type === '0' && wanted.includes(e.name)) out.set(e.name, Buffer.from(e.data));
   return out;
 }

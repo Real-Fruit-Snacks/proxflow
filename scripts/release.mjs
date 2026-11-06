@@ -1,9 +1,10 @@
 // Builds self-contained release packages: the web UI, the server bundled into one file, and the
 // official Node.js runtime. The result runs with no installation and no internet.
 //
-//   node scripts/release.mjs [--targets windows-x64[,linux-x64]] [--skip-web]
+//   node scripts/release.mjs [--targets windows-x64[,linux-x64]] [--skip-web] [--dev-kit]
 //
 // Output: release/proxflow-<target>.(zip|tar.gz) (holding a proxflow-<version>-<target> folder) and release/SHA256SUMS.txt
+// --dev-kit adds release/proxflow-dev-windows-x64.zip: source, Node.js, pnpm and every package, for developing offline.
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -12,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { build } from 'esbuild';
 import { unzipSync, zipSync } from 'fflate';
+import { buildDevKit } from './lib/dev-kit.mjs';
 import { linuxFiles, windowsFiles } from './lib/package-files.mjs';
 import { createTarGz, extractFromTarGz } from './lib/tar.mjs';
 
@@ -19,19 +21,24 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const NODE_VERSION = '24.22.2'; // bundled runtime (LTS)
 const OUT = join(ROOT, 'release');
-const CACHE = join(ROOT, '.cache', 'node');
+const CACHE = join(ROOT, '.cache');
 
+// loose: the bare binary as listed in Node's SHASUMS256.txt. A copy at .cache/node/<loose> (the developer kit
+// puts one there) is used instead of downloading the whole archive.
 const TARGETS = {
-  'windows-x64': { archive: `node-v${NODE_VERSION}-win-x64.zip`, bin: 'node.exe', format: 'zip' },
+  'windows-x64': { archive: `node-v${NODE_VERSION}-win-x64.zip`, bin: 'node.exe', format: 'zip', loose: 'win-x64/node.exe' },
   'linux-x64': { archive: `node-v${NODE_VERSION}-linux-x64.tar.gz`, bin: 'bin/node', format: 'tar.gz' },
 };
 
-const { values: args } = parseArgs({ options: { targets: { type: 'string' }, 'skip-web': { type: 'boolean', default: false } } });
+const { values: args } = parseArgs({
+  options: { targets: { type: 'string' }, 'skip-web': { type: 'boolean', default: false }, 'dev-kit': { type: 'boolean', default: false } },
+});
 // Windows is the release target; linux-x64 can still be built with --targets linux-x64.
 const targets = (args.targets ?? 'windows-x64').split(',').map((t) => t.trim());
 for (const t of targets) if (!TARGETS[t]) throw new Error(`Unknown target "${t}" (have: ${Object.keys(TARGETS).join(', ')})`);
 
-const step = (msg) => console.log(`\n▸ ${msg}`);
+const started = Date.now();
+const step = (msg) => console.log(`\n▸ ${msg}  (${Math.round((Date.now() - started) / 1000)} s)`);
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 // File times inside the packages: SOURCE_DATE_EPOCH, else the last commit, so the same commit builds the same bytes.
 const commitTime = () => {
@@ -103,30 +110,36 @@ console.log(`  proxflow.mjs: ${(serverJs.length / 1024).toFixed(0)} KiB, ${bundl
 
 // ───────────────────────── 3. third-party notices ─────────────────────────
 step('Collecting third-party licenses');
-const licenseReport = JSON.parse(execSync('pnpm licenses list --prod --json', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
-const notices = [
+/** License texts of the packages ProxFlow uses: only what ships in the app (prod), or everything (the dev kit). */
+function thirdPartyNotices(prod) {
+  const report = JSON.parse(execSync(`pnpm licenses list${prod ? ' --prod' : ''} --json`, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+  const out = [];
+  const seen = new Set();
+  for (const p of Object.values(report).flat().sort((a, b) => a.name.localeCompare(b.name))) {
+    if (p.name.startsWith('@proxflow/') || seen.has(p.name)) continue;
+    seen.add(p.name);
+    const dir = p.paths?.[0];
+    const file = dir && existsSync(dir) ? readdirSync(dir).find((f) => /^(licen[cs]e|copying|notice)(\.|$)/i.test(f)) : undefined;
+    const text = file ? readFileSync(join(dir, file), 'utf8').trim() : `License: ${p.license}${p.homepage ? ` — ${p.homepage}` : ''}`;
+    out.push('-'.repeat(78), `${p.name} ${p.versions.join(', ')} (${p.license})`, '', text, '');
+  }
+  return { text: out.join('\n'), count: seen.size };
+}
+const prodNotices = thirdPartyNotices(true);
+const noticesTxt = [
   `ProxFlow ${VERSION} includes the following third-party software.`,
   `Node.js ${NODE_VERSION} is included in the node folder; its license is in node/LICENSE.`,
   '',
-];
-const seen = new Set();
-for (const p of Object.values(licenseReport).flat().sort((a, b) => a.name.localeCompare(b.name))) {
-  if (p.name.startsWith('@proxflow/') || seen.has(p.name)) continue;
-  seen.add(p.name);
-  const dir = p.paths?.[0];
-  const file = dir && existsSync(dir) ? readdirSync(dir).find((f) => /^(licen[cs]e|copying|notice)(\.|$)/i.test(f)) : undefined;
-  const text = file ? readFileSync(join(dir, file), 'utf8').trim() : `License: ${p.license}${p.homepage ? ` — ${p.homepage}` : ''}`;
-  notices.push('-'.repeat(78), `${p.name} ${p.versions.join(', ')} (${p.license})`, '', text, '');
-}
-const noticesTxt = notices.join('\n');
-console.log(`  ${seen.size} packages`);
+  prodNotices.text,
+].join('\n');
+console.log(`  ${prodNotices.count} packages`);
 
 // ───────────────────────── 4. Node.js runtime ─────────────────────────
-async function download(name) {
-  mkdirSync(CACHE, { recursive: true });
-  const file = join(CACHE, name);
+/** Downloads url into .cache/<cacheName> once; later builds (and offline ones) reuse the cached copy. */
+async function fetchCached(url, cacheName) {
+  const file = join(CACHE, cacheName);
   if (existsSync(file)) return readFileSync(file);
-  const url = `https://nodejs.org/dist/v${NODE_VERSION}/${name}`;
+  mkdirSync(dirname(file), { recursive: true });
   console.log(`  downloading ${url}`);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
@@ -135,16 +148,26 @@ async function download(name) {
   renameSync(`${file}.tmp`, file);
   return buf;
 }
+const forget = (cacheName) => rmSync(join(CACHE, cacheName), { force: true });
+const download = (name) => fetchCached(`https://nodejs.org/dist/v${NODE_VERSION}/${name}`, `node/${name}`);
 
 async function nodeRuntime(target) {
   const t = TARGETS[target];
   const sums = (await download('SHASUMS256.txt')).toString();
-  const want = new RegExp(`^([0-9a-f]{64})\\s+${t.archive.replace(/\./g, '\\.')}$`, 'm').exec(sums)?.[1];
+  const official = (name) => new RegExp(`^([0-9a-f]{64})\\s+${name.replace(/\./g, '\\.')}$`, 'm').exec(sums)?.[1];
+  const loose = t.loose && join(CACHE, 'node', ...t.loose.split('/'));
+  if (loose && existsSync(loose) && existsSync(join(dirname(loose), 'LICENSE'))) {
+    const bin = readFileSync(loose);
+    if (sha256(bin) !== official(t.loose)) throw new Error(`${loose} doesn't match Node.js's official checksum — delete it and run again`);
+    console.log(`  using ${relative(ROOT, loose)} (matches the official checksum)`);
+    return { bin, license: readFileSync(join(dirname(loose), 'LICENSE')) };
+  }
+  const want = official(t.archive);
   const archive = await download(t.archive);
   if (!want || sha256(archive) !== want) {
     // Either file could be the bad one (a proxy's error page, a cut-off download): drop both.
-    rmSync(join(CACHE, t.archive), { force: true });
-    rmSync(join(CACHE, 'SHASUMS256.txt'), { force: true });
+    forget(`node/${t.archive}`);
+    forget('node/SHASUMS256.txt');
     throw new Error(`Checksum mismatch for ${t.archive} — deleted the cached copies, run again`);
   }
   const base = t.archive.replace(/\.(zip|tar\.gz)$/, '');
@@ -184,6 +207,26 @@ for (const target of targets) {
   writeFileSync(join(OUT, name), buf);
   artifacts.push({ name, buf });
   console.log(`  ${name}: ${(buf.length / 1024 ** 2).toFixed(1)} MiB`);
+}
+
+// ───────────────────────── 6. offline developer kit ─────────────────────────
+if (args['dev-kit']) {
+  step('Building the offline developer kit');
+  const kit = await buildDevKit({
+    root: ROOT,
+    version: VERSION,
+    nodeVersion: NODE_VERSION,
+    runtime: await nodeRuntime('windows-x64'),
+    shasums: await download('SHASUMS256.txt'),
+    notices: thirdPartyNotices,
+    fetchCached,
+    forget,
+    zipTime,
+    mtime,
+  });
+  writeFileSync(join(OUT, kit.name), kit.buf);
+  artifacts.push(kit);
+  console.log(`  ${kit.name}: ${(kit.buf.length / 1024 ** 2).toFixed(1)} MiB`);
 }
 
 const sums = artifacts.map((a) => `${sha256(a.buf)}  ${a.name}`).join('\n') + '\n';

@@ -2,7 +2,7 @@
 // folder with spaces, brackets and an ampersand, started with a stripped-down PATH (no Node.js, pnpm or git), in
 // demo mode — then the web UI is checked and the full lab-builder suite runs against it.
 //
-//   node scripts/release-smoke.mjs release/proxflow-<v>-windows-x64.zip [--port 3101] [--readonly-data]
+//   node scripts/release-smoke.mjs [release/proxflow-windows-x64.zip] [--port 3101] [--readonly-data]
 //
 // --readonly-data makes the package's data folder unwritable and checks the fallback data location.
 import { execFileSync, spawn } from 'node:child_process';
@@ -15,10 +15,8 @@ import { parseArgs } from 'node:util';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const { values: opts, positionals } = parseArgs({ allowPositionals: true, options: { port: { type: 'string', default: '3101' }, 'readonly-data': { type: 'boolean', default: false } } });
 const WIN = process.platform === 'win32';
-// Default: this platform's package in release/.
-const archive = positionals[0]
-  ? resolve(positionals[0])
-  : join(ROOT, 'release', readdirSync(join(ROOT, 'release')).find((f) => f.endsWith(WIN ? '-windows-x64.zip' : '-linux-x64.tar.gz')) ?? 'missing');
+// Default: this platform's package in release/ (by exact name: proxflow-dev-windows-x64.zip is the developer kit).
+const archive = positionals[0] ? resolve(positionals[0]) : join(ROOT, 'release', WIN ? 'proxflow-windows-x64.zip' : 'proxflow-linux-x64.tar.gz');
 if (!existsSync(archive)) throw new Error(`usage: release-smoke [archive]  (not found: ${archive})`);
 const PORT = Number(opts.port);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

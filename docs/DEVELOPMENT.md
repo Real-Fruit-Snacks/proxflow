@@ -17,6 +17,9 @@ A [React Flow](https://reactflow.dev)-style canvas for Proxmox VE:
 ```bash
 pnpm release                         # → release/proxflow-windows-x64.zip + SHA256SUMS.txt
 node scripts/release-smoke.mjs       # extract it fresh, start it with no Node.js on PATH, run the lab suite
+
+pnpm release --dev-kit               # … plus release/proxflow-dev-windows-x64.zip, the offline developer kit
+node scripts/dev-kit-smoke.mjs       # set the kit up with no Node.js, pnpm or registry and develop in it
 ```
 
 `scripts/release.mjs` builds the UI, bundles the server and all its packages into one file (the build fails if
@@ -24,9 +27,16 @@ anything but Node.js built-ins is left outside the bundle, or if the UI referenc
 official Node.js runtime (SHA-256 verified) and third-party license notices. `--targets linux-x64` builds a Linux
 package too.
 
+`--dev-kit` adds the [offline developer kit](#developing-offline). It holds the source, the same Node.js runtime,
+pnpm (the `packageManager` version, checked against the registry's hash) and a pnpm store filled by `pnpm fetch`
+with every package in `pnpm-lock.yaml` for Windows x64. `scripts/dev-kit-smoke.mjs` extracts it into an awkward
+folder name with no Node.js, pnpm or git on PATH, an empty user profile and pnpm's registry traffic sent to a dead
+proxy. It runs `setup.cmd` (twice) and `dev-shell.cmd`, then typecheck, a release build, `pnpm dev` and both smoke
+suites inside the kit. The dev servers' ports (3001, 5180, 8006, 8007) must be free.
+
 To publish: bump `version` in `package.json`, update `RELEASE_NOTES.md`, commit, then
 `git tag v<version> && git push --tags`. The [Release workflow](../.github/workflows/release.yml) builds and tests
-the package on Windows and only publishes it if every test passes.
+the package and the developer kit on Windows and only publishes them if every test passes.
 
 ```
 ┌──────────────────────────────┐          ┌──────────────────────────┐
@@ -40,7 +50,8 @@ the package on Windows and only publishes it if every test passes.
 
 `apps/mock-pve` is a fake Proxmox that speaks the real `/api2/json` contract (token + ticket auth, permissions,
 cluster resources, node network, guest config, UPID tasks, snapshots, clone). It listens on plain HTTP :8006 and,
-after `pnpm --filter @proxflow/mock-pve gen-cert`, on self-signed HTTPS :8007 — just like a fresh Proxmox install.
+after `pnpm --filter @proxflow/mock-pve gen-cert` (plain Node.js, no openssl needed), on self-signed HTTPS :8007 —
+just like a fresh Proxmox install.
 
 ## Quick start
 
@@ -49,6 +60,17 @@ pnpm install
 pnpm dev          # mock Proxmox :8006/:8007  +  API :3001  +  web :5180 (mock pre-connected)
 pnpm dev:real     # same without the mock — opens the "Connect to Proxmox" dialog on first run
 ```
+
+## Developing offline
+
+Each release also has `proxflow-dev-windows-x64.zip` (about 80 MB) for computers with no internet: the source,
+Node.js, pnpm and every package in a pnpm store. Extract it to a short path, run `setup.cmd` once (it unpacks the
+store, runs `pnpm install --offline` and makes the mock's certificate, in well under a minute), then work in
+`dev-shell.cmd`: a Command Prompt in `source\` with the kit's `node` and `pnpm` first on PATH. Everything above
+works there, `pnpm release` included (it packs the kit's `node.exe` after checking it against Node's official
+checksum list). `setup.cmd` writes `source\.npmrc` to point pnpm at the kit's store and keep it offline; adding a
+package needs a copy of the kit on a computer with internet and `pnpm add <pkg> --config.offline=false`. The kit's
+`README.txt` has the details.
 
 ## Connecting to Proxmox
 
